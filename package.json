@@ -1,0 +1,29 @@
+{
+  "name": "short-video",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "auth": "node server/auth.js",
+    "build:styles": "tailwindcss -i ./src/styles.css -o ./public/styles.css --minify",
+    "dev:styles": "tailwindcss -i ./src/styles.css -o ./public/styles.css --watch",
+    "predev": "npm run build:styles",
+    "dev": "node server/index.js",
+    "crawl:once": "node server/crawlOnce.js",
+    "resolve:pending": "node server/resolvePending.js",
+    "playwright:install": "playwright install chromium",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "express": "^4.21.2",
+    "playwright": "^1.58.2"
+  },
+  "devDependencies": {
+    "supertest": "^7.1.1",
+    "tailwindcss": "^3.4.19"
+  }
+}

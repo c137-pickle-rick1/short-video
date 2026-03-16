@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at top left, rgba(255, 255, 255, 0.7), transparent 32%),
+      linear-gradient(180deg, #f8efe3 0%, #f4e5cf 46%, #efe0cb 100%);
+    font-family: "Space Grotesk", sans-serif;
+  }
+
+  code {
+    font-family: "Space Grotesk", sans-serif;
+  }
+
+  ::selection {
+    background: rgba(220, 94, 57, 0.22);
+    color: #122029;
+  }
+}

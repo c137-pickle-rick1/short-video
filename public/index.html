@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Short Video Feed</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,700&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="relative overflow-x-hidden text-[#122029] antialiased">
+    <div
+      class="pointer-events-none fixed left-[-8rem] top-[-10rem] z-0 h-[30rem] w-[30rem] rounded-full bg-[rgba(220,94,57,0.35)] opacity-35 blur-[56px]"
+    ></div>
+    <div
+      class="pointer-events-none fixed right-[-8rem] top-[20rem] z-0 h-[30rem] w-[30rem] rounded-full bg-[rgba(38,104,118,0.22)] opacity-35 blur-[56px]"
+    ></div>
+    <main class="relative z-10 mx-auto w-full max-w-6xl px-4 py-8 md:py-10">
+      <header
+        class="grid items-stretch gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.75fr)]"
+      >
+        <div>
+          <p class="mb-3 text-[0.78rem] tracking-[0.24em] text-[#dc5e39]">LOCAL VIDEO RADAR</p>
+          <h1 class="max-w-[12ch] font-serif text-[clamp(2.4rem,4vw,4.8rem)] leading-[0.96]">
+            Video tweets, resolved into a scrollable local feed.
+          </h1>
+          <p class="mt-6 max-w-2xl text-[1rem] leading-7 text-[#5e6b72]">
+            Logged-in Playwright scans media grids, pulls playable MP4 variants, and keeps
+            the feed local and lightweight.
+          </p>
+        </div>
+        <aside
+          class="grid gap-4 rounded-[1.5rem] border border-[#122029]/10 bg-[rgba(255,250,244,0.86)] p-5 shadow-glass backdrop-blur-xl"
+        >
+          <div class="grid gap-1.5">
+            <span class="text-[0.82rem] uppercase tracking-[0.12em] text-[#5e6b72]">
+              Total items
+            </span>
+            <strong id="total-items" class="text-[1.2rem]">0</strong>
+          </div>
+          <div class="grid gap-1.5">
+            <span class="text-[0.82rem] uppercase tracking-[0.12em] text-[#5e6b72]">
+              Resolved videos
+            </span>
+            <strong id="resolved-count" class="text-[1.2rem]">0</strong>
+          </div>
+          <div class="grid gap-1.5">
+            <span class="text-[0.82rem] uppercase tracking-[0.12em] text-[#5e6b72]">
+              Last update
+            </span>
+            <strong id="last-updated" class="text-[1.2rem]">Never</strong>
+          </div>
+        </aside>
+      </header>
+
+      <section
+        class="sticky top-4 z-20 mt-6 flex flex-wrap items-center gap-3 rounded-[1.35rem] border border-[#122029]/10 bg-[rgba(255,250,244,0.86)] px-4 py-3 shadow-glass backdrop-blur-xl"
+      >
+        <label class="text-sm text-[#5e6b72]" for="source-filter">Source</label>
+        <select
+          id="source-filter"
+          class="min-w-[13rem] appearance-none rounded-full border border-white/60 bg-white px-4 py-2.5 text-sm text-[#122029] shadow-sm outline-none transition focus:border-[#dc5e39]/40 focus:ring-2 focus:ring-[#dc5e39]/20"
+        >
+          <option value="">All enabled sources</option>
+        </select>
+        <div class="hidden flex-1 sm:block"></div>
+        <span
+          class="rounded-full bg-[#dc5e39]/12 px-3 py-2 text-xs font-medium text-[#dc5e39] sm:text-sm"
+          id="feed-status"
+        >
+          Booting feed…
+        </span>
+      </section>
+
+      <section class="grid grid-cols-1 gap-5 md:grid-cols-2" id="feed-grid" aria-live="polite"></section>
+      <div id="feed-sentinel" class="h-px" aria-hidden="true"></div>
+    </main>
+
+    <template id="empty-state-template">
+      <article
+        class="col-span-full rounded-[1.75rem] border border-[#122029]/10 bg-[rgba(255,250,244,0.86)] px-6 py-8 text-center shadow-glass backdrop-blur-xl"
+      >
+        <h2 class="font-serif text-2xl leading-tight text-[#122029]">No videos yet</h2>
+        <p class="mt-3 text-sm leading-6 text-[#5e6b72] sm:text-base">
+          Enable one or more accounts in <code>config/sources.json</code>, run the crawler,
+          and the feed will populate here.
+        </p>
+      </article>
+    </template>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
