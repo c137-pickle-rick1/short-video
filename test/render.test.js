@@ -18,7 +18,8 @@ test("renderFeedItem renders inline video cards", () => {
   });
 
   assert.match(markup, /<video/);
-  assert.match(markup, /Inline playback ready/);
+  assert.match(markup, /本地直放/);
+  assert.match(markup, /查看原帖/);
 });
 
 test("renderFeedItem renders external fallback cards", () => {
@@ -35,6 +36,6 @@ test("renderFeedItem renders external fallback cards", () => {
     videoUrl: null
   });
 
-  assert.match(markup, /Open on X/);
+  assert.match(markup, /外链回退/);
   assert.doesNotMatch(markup, /<video/);
 });

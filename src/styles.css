@@ -7,20 +7,39 @@
     color-scheme: light;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     min-height: 100vh;
     background:
-      radial-gradient(circle at top left, rgba(255, 255, 255, 0.7), transparent 32%),
-      linear-gradient(180deg, #f8efe3 0%, #f4e5cf 46%, #efe0cb 100%);
-    font-family: "Space Grotesk", sans-serif;
+      radial-gradient(circle at top left, rgba(255, 255, 255, 0.78), transparent 28%),
+      radial-gradient(circle at 84% 10%, rgba(255, 211, 181, 0.52), transparent 20%),
+      linear-gradient(180deg, #fcf7f2 0%, #f6efe7 46%, #efe6dc 100%);
+    font-family: "Plus Jakarta Sans", sans-serif;
   }
 
   code {
-    font-family: "Space Grotesk", sans-serif;
+    font-family: "Plus Jakarta Sans", sans-serif;
   }
 
   ::selection {
-    background: rgba(220, 94, 57, 0.22);
-    color: #122029;
+    background: rgba(225, 77, 56, 0.18);
+    color: #211b17;
+  }
+}
+
+@layer components {
+  .feed-waterfall {
+    column-fill: balance;
+  }
+
+  .feed-waterfall[data-empty="true"] {
+    column-count: 1;
+  }
+
+  .feed-waterfall > * {
+    break-inside: avoid;
   }
 }

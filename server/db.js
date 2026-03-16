@@ -322,6 +322,8 @@ export class AppDatabase {
             t.poster_url AS posterUrl,
             t.status,
             ma.url AS videoUrl,
+            ma.width AS mediaWidth,
+            ma.height AS mediaHeight,
             s.handle AS sourceHandle,
             COALESCE(t.posted_at, t.ingested_at) AS sortValue
           FROM tweets t
