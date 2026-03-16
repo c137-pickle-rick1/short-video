@@ -43,84 +43,24 @@
                 <p class="truncate text-xs text-[#8d7b6f]">参考小红书 explore 的首页布局重组</p>
               </div>
             </div>
-            <div
-              class="inline-flex items-center gap-2 rounded-full bg-[#ffe8e2] px-4 py-2 text-sm font-medium text-[#d14d34]"
-            >
-              <span class="h-2.5 w-2.5 rounded-full bg-current"></span>
-              <span id="live-status">等待首轮抓取</span>
-            </div>
           </div>
 
-          <div class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(21rem,0.92fr)]">
-            <div class="grid gap-6">
-              <div>
-                <p class="text-[0.78rem] font-semibold uppercase tracking-[0.34em] text-[#d14d34]">
-                  Explore Feed
-                </p>
-                <h1
-                  class="mt-3 max-w-[10ch] font-serif text-[clamp(2.5rem,4.4vw,4.5rem)] leading-[0.92] text-[#211b17]"
-                >
-                  用 explore 的方式浏览本地短视频
-                </h1>
-                <p class="mt-4 max-w-xl text-[0.98rem] leading-7 text-[#7b695c]">
-                  保留当前抓取与解析能力，只把首页改成更像内容社区的发现流：频道切换、
-                  来源面板和卡片式瀑布布局。
-                </p>
-              </div>
-              <div class="grid gap-3 sm:grid-cols-3">
-                <article class="rounded-[1.35rem] bg-white/82 px-4 py-4 shadow-[0_10px_30px_rgba(58,27,12,0.06)]">
-                  <p class="text-[0.78rem] uppercase tracking-[0.18em] text-[#9b8577]">浏览方式</p>
-                  <p class="mt-2 text-lg font-semibold text-[#211b17]">双列到多列瀑布流</p>
-                </article>
-                <article class="rounded-[1.35rem] bg-white/82 px-4 py-4 shadow-[0_10px_30px_rgba(58,27,12,0.06)]">
-                  <p class="text-[0.78rem] uppercase tracking-[0.18em] text-[#9b8577]">内容状态</p>
-                  <p class="mt-2 text-lg font-semibold text-[#211b17]">本地直放优先</p>
-                </article>
-                <article class="rounded-[1.35rem] bg-white/82 px-4 py-4 shadow-[0_10px_30px_rgba(58,27,12,0.06)]">
-                  <p class="text-[0.78rem] uppercase tracking-[0.18em] text-[#9b8577]">筛选入口</p>
-                  <p class="mt-2 text-lg font-semibold text-[#211b17]">来源胶囊快速切换</p>
-                </article>
-              </div>
-            </div>
-
-            <aside class="grid gap-3 sm:grid-cols-2 xl:grid-cols-2">
-              <article
-                class="rounded-[1.5rem] border border-white/70 bg-white/90 px-5 py-5 shadow-[0_20px_45px_rgba(58,27,12,0.08)]"
-              >
-                <p class="text-[0.78rem] uppercase tracking-[0.18em] text-[#9b8577]">已发布内容</p>
-                <strong id="published-total" class="mt-3 block text-[2rem] leading-none text-[#211b17]">
-                  0
-                </strong>
-              </article>
-              <article
-                class="rounded-[1.5rem] border border-white/70 bg-white/90 px-5 py-5 shadow-[0_20px_45px_rgba(58,27,12,0.08)]"
-              >
-                <p class="text-[0.78rem] uppercase tracking-[0.18em] text-[#9b8577]">可直接播放</p>
-                <strong id="local-playable" class="mt-3 block text-[2rem] leading-none text-[#211b17]">
-                  0
-                </strong>
-              </article>
-              <article
-                class="rounded-[1.5rem] border border-white/70 bg-white/90 px-5 py-5 shadow-[0_20px_45px_rgba(58,27,12,0.08)]"
-              >
-                <p class="text-[0.78rem] uppercase tracking-[0.18em] text-[#9b8577]">外链回退</p>
-                <strong id="external-count" class="mt-3 block text-[2rem] leading-none text-[#211b17]">
-                  0
-                </strong>
-              </article>
-              <article
-                class="rounded-[1.5rem] border border-white/70 bg-white/90 px-5 py-5 shadow-[0_20px_45px_rgba(58,27,12,0.08)]"
-              >
-                <p class="text-[0.78rem] uppercase tracking-[0.18em] text-[#9b8577]">最近更新</p>
-                <strong id="last-updated" class="mt-3 block text-[1.08rem] leading-6 text-[#211b17]">
-                  暂无
-                </strong>
-              </article>
-            </aside>
+          <div class="mt-6">
+            <p class="text-[0.78rem] font-semibold uppercase tracking-[0.34em] text-[#d14d34]">
+              Explore Feed
+            </p>
+            <h1
+              class="mt-3 max-w-[10ch] font-serif text-[clamp(2.5rem,4.4vw,4.5rem)] leading-[0.92] text-[#211b17]"
+            >
+              用 explore 的方式浏览本地短视频
+            </h1>
+            <p class="mt-4 max-w-2xl text-[0.98rem] leading-7 text-[#7b695c]">
+              保留当前抓取与解析能力，首页只保留来源筛选和卡片式内容流，减少说明性模块干扰。
+            </p>
           </div>
         </header>
 
-        <section class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_21rem]">
+        <section class="mt-6">
           <div class="min-w-0">
             <section
               class="sticky top-4 z-20 grid gap-4 rounded-[1.75rem] border border-white/70 bg-[rgba(255,250,246,0.86)] px-4 py-4 shadow-glass backdrop-blur-2xl sm:px-5"
@@ -168,42 +108,6 @@
             ></section>
             <div id="feed-sentinel" class="h-px" aria-hidden="true"></div>
           </div>
-
-          <aside class="grid h-fit gap-4 xl:sticky xl:top-4">
-            <article
-              class="rounded-[1.75rem] border border-white/70 bg-[rgba(255,250,246,0.88)] p-5 shadow-glass backdrop-blur-2xl"
-            >
-              <p class="text-[0.78rem] uppercase tracking-[0.2em] text-[#9b8577]">浏览提示</p>
-              <h4 class="mt-2 text-[1.3rem] font-semibold tracking-[-0.03em] text-[#211b17]">
-                首页行为
-              </h4>
-              <div class="mt-4 grid gap-3 text-sm leading-6 text-[#78675d]">
-                <p>红色标签代表视频已落地到本地代理，可直接在卡片里预览。</p>
-                <p>来源胶囊会同步筛选器，适合像 explore 那样快速切频道看内容。</p>
-                <p>滚动到底部会继续加载，保持首页是连续内容流而不是分页表格。</p>
-              </div>
-            </article>
-
-            <article
-              class="rounded-[1.75rem] border border-white/70 bg-[rgba(255,250,246,0.88)] p-5 shadow-glass backdrop-blur-2xl"
-            >
-              <div class="flex items-center justify-between gap-3">
-                <div>
-                  <p class="text-[0.78rem] uppercase tracking-[0.2em] text-[#9b8577]">来源面板</p>
-                  <h4 class="mt-2 text-[1.3rem] font-semibold tracking-[-0.03em] text-[#211b17]">
-                    活跃抓取源
-                  </h4>
-                </div>
-                <span
-                  id="source-total"
-                  class="rounded-full bg-white px-3 py-2 text-xs font-semibold text-[#78675d]"
-                >
-                  0 个来源
-                </span>
-              </div>
-              <div id="source-board" class="mt-4 grid gap-3"></div>
-            </article>
-          </aside>
         </section>
       </div>
     </main>

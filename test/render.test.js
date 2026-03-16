@@ -20,6 +20,7 @@ test("renderFeedItem renders inline video cards", () => {
   assert.match(markup, /<video/);
   assert.match(markup, /本地直放/);
   assert.match(markup, /查看原帖/);
+  assert.doesNotMatch(markup, /\bcontrols\b/);
 });
 
 test("renderFeedItem renders external fallback cards", () => {

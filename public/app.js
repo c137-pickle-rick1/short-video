@@ -1,4 +1,5 @@
 import { renderFeedItem } from "./render.js";
+import { installHoverVideoPreview } from "./videoPreview.js";
 
 const state = {
   cursor: null,
@@ -12,22 +13,16 @@ const state = {
 const grid = document.querySelector("#feed-grid");
 const sourceFilter = document.querySelector("#source-filter");
 const sourceChips = document.querySelector("#source-chips");
-const sourceBoard = document.querySelector("#source-board");
 const feedStatus = document.querySelector("#feed-status");
 const feedSummary = document.querySelector("#feed-summary");
-const liveStatus = document.querySelector("#live-status");
-const sourceTotal = document.querySelector("#source-total");
 const sentinel = document.querySelector("#feed-sentinel");
 const emptyStateTemplate = document.querySelector("#empty-state-template");
-const publishedTotalEl = document.querySelector("#published-total");
-const localPlayableEl = document.querySelector("#local-playable");
-const externalCountEl = document.querySelector("#external-count");
-const lastUpdatedEl = document.querySelector("#last-updated");
 
 const ACTIVE_SOURCE_CHIP_CLASS =
   "rounded-full border border-[#d14d34] bg-[#211b17] px-4 py-2 text-sm font-medium text-white shadow-[0_12px_28px_rgba(33,27,23,0.14)] transition";
 const INACTIVE_SOURCE_CHIP_CLASS =
   "rounded-full border border-[#eadfd4] bg-white/88 px-4 py-2 text-sm font-medium text-[#6d5d52] shadow-[0_10px_28px_rgba(58,27,12,0.04)] transition hover:border-[#d14d34]/35 hover:text-[#211b17]";
+const videoPreviewControllers = new Map();
 
 const videoObserver = new IntersectionObserver(
   (entries) => {
@@ -37,10 +32,13 @@ const videoObserver = new IntersectionObserver(
         continue;
       }
 
-      if (entry.isIntersecting) {
-        video.play().catch(() => {});
-      } else {
-        video.pause();
+      const controller = videoPreviewControllers.get(video);
+      if (!controller) {
+        continue;
+      }
+
+      if (!entry.isIntersecting) {
+        controller.handleVisibilityChange(false);
       }
     }
   },
@@ -49,36 +47,12 @@ const videoObserver = new IntersectionObserver(
   }
 );
 
-function escapeHtml(value) {
-  return String(value || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
-function formatDateTime(value) {
-  if (!value) {
-    return "暂无";
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short"
-  }).format(new Date(value));
-}
-
 function getSourceLabel(handle) {
   return handle ? `@${handle}` : "全部来源";
 }
 
 function setStatus(label) {
   feedStatus.textContent = label;
-}
-
-function setLiveStatus(label) {
-  liveStatus.textContent = label;
 }
 
 function createFragment(markup) {
@@ -118,6 +92,8 @@ function renderEmptyState() {
 function clearFeed() {
   for (const video of grid.querySelectorAll("video")) {
     videoObserver.unobserve(video);
+    videoPreviewControllers.get(video)?.destroy();
+    videoPreviewControllers.delete(video);
   }
 
   grid.dataset.empty = "false";
@@ -129,61 +105,6 @@ function syncActiveSourceChip() {
     const active = button.dataset.source === state.source;
     button.className = active ? ACTIVE_SOURCE_CHIP_CLASS : INACTIVE_SOURCE_CHIP_CLASS;
     button.setAttribute("aria-pressed", active ? "true" : "false");
-  }
-}
-
-function renderSourceBoard(sources) {
-  sourceBoard.replaceChildren();
-
-  if (sources.length === 0) {
-    sourceBoard.append(
-      createFragment(`
-        <article class="rounded-[1.35rem] border border-[#eadfd4] bg-white/85 px-4 py-4 text-sm leading-6 text-[#78675d]">
-          暂无启用来源，先在 <code>config/sources.json</code> 中添加账号。
-        </article>
-      `)
-    );
-    return;
-  }
-
-  for (const source of sources.slice(0, 6)) {
-    const syncState =
-      source.pendingCount > 0
-        ? `${source.pendingCount} 条待解析`
-        : source.publishedCount > 0
-          ? `${source.publishedCount} 条已发布`
-          : "等待首条内容";
-    const syncToneClass =
-      source.pendingCount > 0 ? "bg-[#fff1da] text-[#ae6b00]" : "bg-[#eef6ef] text-[#2b6b44]";
-    const lastSeen = source.lastDiscoveredAt
-      ? `最近发现 ${formatDateTime(source.lastDiscoveredAt)}`
-      : "尚未记录发现时间";
-    const runLabel =
-      source.lastRunStatus === "success"
-        ? "最近任务成功"
-        : source.lastRunStatus
-          ? `最近任务 ${escapeHtml(source.lastRunStatus)}`
-          : "尚无运行记录";
-
-    sourceBoard.append(
-      createFragment(`
-        <article class="rounded-[1.35rem] border border-[#eadfd4] bg-white/88 px-4 py-4 shadow-[0_12px_30px_rgba(58,27,12,0.05)]">
-          <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0">
-              <p class="truncate text-[1rem] font-semibold text-[#211b17]">@${escapeHtml(source.handle)}</p>
-              <p class="mt-1 text-xs text-[#8d7b6f]">${lastSeen}</p>
-            </div>
-            <span class="rounded-full ${syncToneClass} px-2.5 py-1 text-[0.72rem] font-semibold">
-              ${syncState}
-            </span>
-          </div>
-          <div class="mt-3 flex items-center justify-between gap-3 text-xs text-[#8d7b6f]">
-            <span>已发布 ${source.publishedCount}</span>
-            <span>${runLabel}</span>
-          </div>
-        </article>
-      `)
-    );
   }
 }
 
@@ -223,15 +144,6 @@ async function fetchJson(url) {
   return response.json();
 }
 
-async function loadStats() {
-  const stats = await fetchJson("/api/stats");
-  publishedTotalEl.textContent = String(stats.totalItems);
-  localPlayableEl.textContent = String(stats.resolvedCount);
-  externalCountEl.textContent = String(stats.externalOnlyCount);
-  lastUpdatedEl.textContent = formatDateTime(stats.lastUpdatedAt);
-  setLiveStatus(stats.lastUpdatedAt ? `最近同步 ${formatDateTime(stats.lastUpdatedAt)}` : "等待首轮抓取");
-}
-
 async function loadSources() {
   const payload = await fetchJson("/api/sources");
   const enabledSources = payload.items
@@ -254,11 +166,9 @@ async function loadSources() {
   }
 
   renderSourceChips(spotlightSources);
-  renderSourceBoard(spotlightSources);
-  sourceTotal.textContent = `${spotlightSources.length} 个活跃来源`;
 
   if (!enabledSources.length) {
-    setLiveStatus("等待配置来源");
+    setStatus("等待配置来源");
   }
 }
 
@@ -321,6 +231,7 @@ async function loadFeed() {
       grid.append(node);
       const video = node.querySelector("video");
       if (video) {
+        videoPreviewControllers.set(video, installHoverVideoPreview(node, video));
         videoObserver.observe(video);
       }
     }
@@ -358,7 +269,7 @@ sourceFilter.addEventListener("change", async (event) => {
 });
 
 async function bootstrap() {
-  await Promise.all([loadStats(), loadSources()]);
+  await loadSources();
   resetFeed();
   await loadFeed();
   feedObserver.observe(sentinel);

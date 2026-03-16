@@ -65,7 +65,7 @@ export function renderFeedItem(tweet) {
   const authorInitial = escapeHtml(getAuthorInitial(tweet.authorName || tweet.authorHandle));
   const frameClass = getMediaFrameClass(tweet);
   const statusLabel = tweet.status === "resolved" && tweet.videoUrl ? "本地直放" : "外链回退";
-  const behaviorLabel = tweet.status === "resolved" && tweet.videoUrl ? "自动循环预览" : "点击跳转查看";
+  const behaviorLabel = tweet.status === "resolved" && tweet.videoUrl ? "悬停播放预览" : "点击跳转查看";
   const mediaMarkup =
     tweet.status === "resolved" && tweet.videoUrl
       ? `
@@ -75,7 +75,6 @@ export function renderFeedItem(tweet) {
             poster="${safePoster}"
             muted
             loop
-            controls
             playsinline
             disablepictureinpicture
             preload="metadata"

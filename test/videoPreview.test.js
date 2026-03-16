@@ -1,0 +1,103 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { installHoverVideoPreview } from "../public/videoPreview.js";
+
+class FakeTarget extends EventTarget {
+  constructor() {
+    super();
+    this.nodes = new Set();
+  }
+
+  contains(node) {
+    return this.nodes.has(node);
+  }
+}
+
+class FakeVideo extends EventTarget {
+  constructor() {
+    super();
+    this.controls = true;
+    this.currentTime = 7;
+    this.pauseCount = 0;
+    this.playCount = 0;
+  }
+
+  play() {
+    this.playCount += 1;
+    return Promise.resolve();
+  }
+
+  pause() {
+    this.pauseCount += 1;
+  }
+}
+
+function createFocusLikeEvent(type, relatedTarget) {
+  const event = new Event(type);
+  Object.defineProperty(event, "relatedTarget", {
+    configurable: true,
+    enumerable: true,
+    value: relatedTarget ?? null
+  });
+  return event;
+}
+
+test("installHoverVideoPreview plays on hover and resets on leave", () => {
+  const container = new FakeTarget();
+  const video = new FakeVideo();
+  const controller = installHoverVideoPreview(container, video);
+
+  assert.equal(video.controls, false);
+
+  container.dispatchEvent(new Event("mouseenter"));
+  assert.equal(video.controls, true);
+  assert.equal(video.playCount, 1);
+
+  container.dispatchEvent(new Event("mouseleave"));
+  assert.equal(video.controls, false);
+  assert.equal(video.pauseCount, 1);
+  assert.equal(video.currentTime, 0);
+
+  controller.destroy();
+});
+
+test("installHoverVideoPreview keeps playing while focus stays inside the card", () => {
+  const container = new FakeTarget();
+  const childNode = {};
+  container.nodes.add(childNode);
+  const video = new FakeVideo();
+  const controller = installHoverVideoPreview(container, video);
+
+  container.dispatchEvent(createFocusLikeEvent("focusin"));
+  assert.equal(video.controls, true);
+  assert.equal(video.playCount, 1);
+
+  container.dispatchEvent(createFocusLikeEvent("focusout", childNode));
+  assert.equal(video.controls, true);
+  assert.equal(video.pauseCount, 0);
+
+  container.dispatchEvent(createFocusLikeEvent("focusout"));
+  assert.equal(video.controls, false);
+  assert.equal(video.pauseCount, 1);
+  assert.equal(video.currentTime, 0);
+
+  controller.destroy();
+});
+
+test("installHoverVideoPreview pauses when the card leaves the viewport", () => {
+  const container = new FakeTarget();
+  const video = new FakeVideo();
+  const controller = installHoverVideoPreview(container, video);
+
+  container.dispatchEvent(new Event("mouseenter"));
+  assert.equal(video.controls, true);
+  assert.equal(video.playCount, 1);
+
+  controller.handleVisibilityChange(false);
+  assert.equal(video.controls, false);
+  assert.equal(video.pauseCount, 1);
+  assert.equal(video.currentTime, 0);
+
+  controller.destroy();
+});
