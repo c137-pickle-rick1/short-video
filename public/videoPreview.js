@@ -279,3 +279,71 @@ export function installHoverVideoPreview(container, video) {
 
   return createNativePreviewController(container, video);
 }
+
+export function installDetailVideoPlayer(container, video) {
+  if (!(container instanceof HTMLElement) || !(video instanceof HTMLVideoElement)) {
+    throw new TypeError("installDetailVideoPlayer expects HTMLElement and HTMLVideoElement instances");
+  }
+
+  const Plyr = window.Plyr;
+  if (typeof Plyr === "function") {
+    video.controls = false;
+    const player = new Plyr(video, {
+      autoplay: true,
+      clickToPlay: true,
+      fullscreen: {
+        enabled: true,
+        fallback: true,
+        iosNative: false
+      },
+      hideControls: false,
+      keyboard: {
+        focused: true,
+        global: false
+      },
+      loop: {
+        active: video.loop
+      },
+      muted: video.muted,
+      playsinline: true,
+      resetOnEnd: false,
+      tooltips: {
+        controls: false,
+        seek: true
+      },
+      controls: ["play", "progress", "current-time", "mute", "volume", "fullscreen"]
+    });
+
+    const syncContainer = () => {
+      player.elements?.container?.classList.add("detail-modal-player", "detail-modal-media-shell");
+      player.elements?.container?.setAttribute("data-detail-layout-node", "true");
+    };
+
+    const handleReady = () => {
+      syncContainer();
+      player.muted = video.muted;
+      player.play().catch(() => {});
+    };
+
+    player.on("ready", handleReady);
+    requestAnimationFrame(syncContainer);
+
+    return {
+      destroy() {
+        player.off?.("ready", handleReady);
+        player.pause();
+        player.destroy();
+      }
+    };
+  }
+
+  video.controls = true;
+  video.play().catch(() => {});
+
+  return {
+    destroy() {
+      video.pause();
+      video.controls = false;
+    }
+  };
+}

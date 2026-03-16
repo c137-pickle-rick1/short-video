@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { renderFeedItem } from "../public/render.js";
+import { renderFeedDetail, renderFeedItem } from "../public/render.js";
 
-test("renderFeedItem renders inline video cards", () => {
+test("renderFeedItem renders inline video cards with dialog trigger semantics", () => {
   const markup = renderFeedItem({
     tweetId: "999",
     authorHandle: "demo",
@@ -20,8 +20,8 @@ test("renderFeedItem renders inline video cards", () => {
 
   assert.match(markup, /<video/);
   assert.match(markup, /avatar\.jpg/);
-  assert.match(markup, /本地直放/);
-  assert.match(markup, /查看原帖/);
+  assert.match(markup, /data-feed-detail-trigger="true"/);
+  assert.match(markup, /aria-haspopup="dialog"/);
   assert.doesNotMatch(markup, /\bcontrols\b/);
 });
 
@@ -39,7 +39,8 @@ test("renderFeedItem renders external fallback cards", () => {
     videoUrl: null
   });
 
-  assert.match(markup, /外链回退/);
+  assert.match(markup, /data-status="external_only"/);
+  assert.match(markup, /Poster for @demo/);
   assert.doesNotMatch(markup, /<video/);
 });
 
@@ -78,4 +79,26 @@ test("renderFeedItem falls back to author initial when avatar is missing", () =>
 
   assert.match(markup, />\s*D\s*<\/span>/);
   assert.doesNotMatch(markup, /<img[\s\S]*头像/);
+});
+
+test("renderFeedDetail renders modal layout content", () => {
+  const markup = renderFeedDetail({
+    tweetId: "2001",
+    authorHandle: "demo",
+    authorName: "Demo Creator",
+    authorAvatarUrl: "https://example.com/avatar.jpg",
+    text: "这是一个用于详情弹窗的视频标题",
+    postedAt: "2025-02-14T06:37:00.000Z",
+    posterUrl: "https://example.com/poster.jpg",
+    status: "resolved",
+    videoUrl: "https://example.com/video.mp4"
+  });
+
+  assert.match(markup, /detail-modal-title/);
+  assert.match(markup, /关注/);
+  assert.match(markup, /发布日期/);
+  assert.match(markup, /评论区/);
+  assert.match(markup, /示意评论/);
+  assert.match(markup, /<video/);
+  assert.match(markup, /data-detail-player/);
 });

@@ -1,5 +1,5 @@
-import { renderFeedItem } from "./render.js";
-import { installHoverVideoPreview } from "./videoPreview.js";
+import { renderFeedDetail, renderFeedItem } from "./render.js";
+import { installDetailVideoPlayer, installHoverVideoPreview } from "./videoPreview.js";
 
 const state = {
   cursor: null,
@@ -16,9 +16,15 @@ const feedStatus = document.querySelector("#feed-status");
 const feedSummary = document.querySelector("#feed-summary");
 const sentinel = document.querySelector("#feed-sentinel");
 const emptyStateTemplate = document.querySelector("#empty-state-template");
+const detailModal = document.querySelector("#feed-detail-modal");
+const detailModalPanel = document.querySelector("#feed-detail-modal-panel");
 
+const feedItemsById = new Map();
 const videoPreviewControllers = new Map();
 let colcade = null;
+let lastActiveElement = null;
+let previousBodyOverflow = "";
+let detailPlayerController = null;
 
 const videoObserver = new IntersectionObserver(
   (entries) => {
@@ -57,6 +63,12 @@ function createFragment(markup) {
   const template = document.createElement("template");
   template.innerHTML = markup.trim();
   return template.content.firstElementChild;
+}
+
+function createContent(markup) {
+  const template = document.createElement("template");
+  template.innerHTML = markup.trim();
+  return template.content;
 }
 
 function getFeedItems() {
@@ -107,6 +119,95 @@ function appendFeedNodes(nodes) {
   grid.querySelector(".feed-grid-col")?.append(...nodes);
 }
 
+function stopAllFeedPreviews() {
+  for (const controller of videoPreviewControllers.values()) {
+    controller.handleVisibilityChange(false);
+  }
+}
+
+function pauseVideoElements(root) {
+  for (const video of root?.querySelectorAll?.("video") || []) {
+    if (!(video instanceof HTMLVideoElement)) {
+      continue;
+    }
+
+    video.pause();
+  }
+}
+
+function clearDetailModalNodes() {
+  if (!detailModalPanel) {
+    return;
+  }
+
+  for (const node of detailModalPanel.querySelectorAll("[data-detail-layout-node='true']")) {
+    node.remove();
+  }
+}
+
+function destroyDetailPlayer() {
+  detailPlayerController?.destroy?.();
+  detailPlayerController = null;
+}
+
+function setupDetailPlayer() {
+  if (!detailModalPanel) {
+    return;
+  }
+
+  destroyDetailPlayer();
+  const video = detailModalPanel.querySelector("[data-detail-player]");
+  if (!(video instanceof HTMLVideoElement)) {
+    return;
+  }
+
+  detailPlayerController = installDetailVideoPlayer(detailModalPanel, video);
+}
+
+function openDetailModal(tweetId, triggerElement) {
+  const normalizedTweetId = String(tweetId || "");
+  const tweet = feedItemsById.get(normalizedTweetId);
+  if (!tweet || !detailModal || !detailModalPanel) {
+    return;
+  }
+
+  stopAllFeedPreviews();
+  destroyDetailPlayer();
+  pauseVideoElements(detailModalPanel);
+  clearDetailModalNodes();
+  detailModalPanel.append(createContent(renderFeedDetail(tweet)));
+  setupDetailPlayer();
+
+  if (detailModal.hidden) {
+    previousBodyOverflow = document.body.style.overflow;
+  }
+
+  detailModal.hidden = false;
+  detailModal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  lastActiveElement = triggerElement instanceof HTMLElement ? triggerElement : document.activeElement;
+  detailModalPanel.focus({ preventScroll: true });
+}
+
+function closeDetailModal({ restoreFocus = true } = {}) {
+  if (!detailModal || detailModal.hidden) {
+    return;
+  }
+
+  destroyDetailPlayer();
+  pauseVideoElements(detailModal);
+  detailModal.classList.add("hidden");
+  detailModal.hidden = true;
+  clearDetailModalNodes();
+  document.body.style.overflow = previousBodyOverflow;
+
+  if (restoreFocus && lastActiveElement instanceof HTMLElement) {
+    lastActiveElement.focus({ preventScroll: true });
+  }
+
+  lastActiveElement = null;
+}
+
 function updateFeedSummary() {
   if (!feedSummary) {
     return;
@@ -146,6 +247,9 @@ function clearFeed() {
   if (!grid) {
     return;
   }
+
+  closeDetailModal({ restoreFocus: false });
+  feedItemsById.clear();
 
   for (const video of grid.querySelectorAll("video")) {
     videoObserver.unobserve(video);
@@ -252,6 +356,10 @@ async function loadFeed() {
     grid.dataset.empty = "false";
     syncColcadeLayout();
 
+    for (const tweet of payload.items) {
+      feedItemsById.set(String(tweet.tweetId), tweet);
+    }
+
     const nodes = payload.items.map((tweet) => createFragment(renderFeedItem(tweet)));
     appendFeedNodes(nodes);
 
@@ -299,12 +407,65 @@ if (sourceFilter) {
   });
 }
 
+if (grid) {
+  grid.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+
+    const feedItem = target.closest("[data-feed-detail-trigger='true']");
+    if (!(feedItem instanceof HTMLElement) || !grid.contains(feedItem)) {
+      return;
+    }
+
+    openDetailModal(feedItem.dataset.tweetId, feedItem);
+  });
+
+  grid.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+
+    const feedItem = target.closest("[data-feed-detail-trigger='true']");
+    if (!(feedItem instanceof HTMLElement) || !grid.contains(feedItem)) {
+      return;
+    }
+
+    event.preventDefault();
+    openDetailModal(feedItem.dataset.tweetId, feedItem);
+  });
+}
+
+if (detailModal) {
+  detailModal.addEventListener("click", (event) => {
+    if (event.target !== detailModal) {
+      return;
+    }
+
+    closeDetailModal();
+  });
+}
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && detailModal && !detailModal.hidden) {
+    closeDetailModal();
+  }
+});
+
 async function bootstrap() {
   ensureColcade();
   await loadSources();
   resetFeed();
   await loadFeed();
-  feedObserver.observe(sentinel);
+  if (sentinel) {
+    feedObserver.observe(sentinel);
+  }
 }
 
 bootstrap().catch((error) => {
