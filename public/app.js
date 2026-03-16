@@ -25,6 +25,20 @@ let colcade = null;
 let lastActiveElement = null;
 let previousBodyOverflow = "";
 let detailPlayerController = null;
+const FEED_ITEM_INTERACTIVE_SELECTOR = [
+  ".plyr__controls",
+  ".plyr__control",
+  ".plyr__menu",
+  ".plyr__progress",
+  ".plyr__volume",
+  "button",
+  "a[href]",
+  "input",
+  "select",
+  "textarea",
+  "[role='slider']",
+  "[role='menuitem']"
+].join(", ");
 
 const videoObserver = new IntersectionObserver(
   (entries) => {
@@ -143,6 +157,15 @@ function clearDetailModalNodes() {
   for (const node of detailModalPanel.querySelectorAll("[data-detail-layout-node='true']")) {
     node.remove();
   }
+}
+
+function shouldIgnoreFeedDetailTrigger(target, feedItem) {
+  if (!(target instanceof Element) || !(feedItem instanceof HTMLElement)) {
+    return false;
+  }
+
+  const interactiveNode = target.closest(FEED_ITEM_INTERACTIVE_SELECTOR);
+  return !!interactiveNode && interactiveNode !== feedItem && feedItem.contains(interactiveNode);
 }
 
 function destroyDetailPlayer() {
@@ -409,6 +432,10 @@ if (sourceFilter) {
 
 if (grid) {
   grid.addEventListener("click", (event) => {
+    if (event.defaultPrevented) {
+      return;
+    }
+
     const target = event.target;
     if (!(target instanceof Element)) {
       return;
@@ -416,6 +443,10 @@ if (grid) {
 
     const feedItem = target.closest("[data-feed-detail-trigger='true']");
     if (!(feedItem instanceof HTMLElement) || !grid.contains(feedItem)) {
+      return;
+    }
+
+    if (shouldIgnoreFeedDetailTrigger(target, feedItem)) {
       return;
     }
 
@@ -434,6 +465,10 @@ if (grid) {
 
     const feedItem = target.closest("[data-feed-detail-trigger='true']");
     if (!(feedItem instanceof HTMLElement) || !grid.contains(feedItem)) {
+      return;
+    }
+
+    if (shouldIgnoreFeedDetailTrigger(target, feedItem)) {
       return;
     }
 
