@@ -23,6 +23,7 @@ const feedItemsById = new Map();
 const videoPreviewControllers = new Map();
 let colcade = null;
 let lastActiveElement = null;
+let lastDetailOpenInteraction = null;
 let previousBodyOverflow = "";
 let detailPlayerController = null;
 const FEED_ITEM_INTERACTIVE_SELECTOR = [
@@ -187,7 +188,7 @@ function setupDetailPlayer() {
   detailPlayerController = installDetailVideoPlayer(detailModalPanel, video);
 }
 
-function openDetailModal(tweetId, triggerElement) {
+function openDetailModal(tweetId, triggerElement, { interactionType = "pointer" } = {}) {
   const normalizedTweetId = String(tweetId || "");
   const tweet = feedItemsById.get(normalizedTweetId);
   if (!tweet || !detailModal || !detailModalPanel) {
@@ -209,12 +210,25 @@ function openDetailModal(tweetId, triggerElement) {
   detailModal.classList.remove("hidden");
   document.body.style.overflow = "hidden";
   lastActiveElement = triggerElement instanceof HTMLElement ? triggerElement : document.activeElement;
+  lastDetailOpenInteraction = interactionType === "keyboard" ? "keyboard" : "pointer";
   detailModalPanel.focus({ preventScroll: true });
 }
 
 function closeDetailModal({ restoreFocus = true } = {}) {
   if (!detailModal || detailModal.hidden) {
     return;
+  }
+
+  const shouldRestoreTriggerFocus =
+    restoreFocus &&
+    lastDetailOpenInteraction === "keyboard" &&
+    lastActiveElement instanceof HTMLElement;
+
+  if (!shouldRestoreTriggerFocus) {
+    const activeElement = document.activeElement;
+    if (activeElement instanceof HTMLElement && detailModal.contains(activeElement)) {
+      activeElement.blur();
+    }
   }
 
   destroyDetailPlayer();
@@ -224,11 +238,12 @@ function closeDetailModal({ restoreFocus = true } = {}) {
   clearDetailModalNodes();
   document.body.style.overflow = previousBodyOverflow;
 
-  if (restoreFocus && lastActiveElement instanceof HTMLElement) {
+  if (shouldRestoreTriggerFocus) {
     lastActiveElement.focus({ preventScroll: true });
   }
 
   lastActiveElement = null;
+  lastDetailOpenInteraction = null;
 }
 
 function updateFeedSummary() {
@@ -450,7 +465,7 @@ if (grid) {
       return;
     }
 
-    openDetailModal(feedItem.dataset.tweetId, feedItem);
+    openDetailModal(feedItem.dataset.tweetId, feedItem, { interactionType: "pointer" });
   });
 
   grid.addEventListener("keydown", (event) => {
@@ -473,7 +488,7 @@ if (grid) {
     }
 
     event.preventDefault();
-    openDetailModal(feedItem.dataset.tweetId, feedItem);
+    openDetailModal(feedItem.dataset.tweetId, feedItem, { interactionType: "keyboard" });
   });
 }
 
