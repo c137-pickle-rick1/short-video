@@ -34,6 +34,7 @@ export class CrawlOrchestrator {
           tweetId: item.tweetId,
           sourceId: source.id,
           tweetUrl: item.tweetUrl,
+          durationText: item.durationText || null,
           rawDiscoveryPayload: item.rawDiscoveryPayload
         });
         if (wasInserted) {
@@ -135,6 +136,57 @@ export class CrawlOrchestrator {
 
     return {
       itemsSeen: pendingTweets.length,
+      itemsResolved: resolvedCount,
+      status: finalStatus,
+      errorMessage: failureMessage
+    };
+  }
+
+  async backfillMissingAvatars(limit = null) {
+    if (this.inBackoff()) {
+      return {
+        skipped: true,
+        reason: this.backoffReason,
+        until: this.backoffUntil.toISOString()
+      };
+    }
+
+    const runId = this.db.createCrawlRun({ phase: "resolve" });
+    const tweets = this.db.listPublishedTweetsMissingAvatar(limit);
+    let resolvedCount = 0;
+    let failureMessage = null;
+    let finalStatus = "success";
+
+    try {
+      for (const tweet of tweets) {
+        const resolution = await this.resolverClient.resolveTweet(tweet);
+        this.db.applyResolution(tweet.tweetId, resolution);
+        resolvedCount += 1;
+
+        if (isBackoffErrorCode(resolution.errorCode)) {
+          this.setBackoff(resolution.errorCode);
+          failureMessage = resolution.errorMessage || resolution.errorCode;
+          finalStatus = "failed";
+          break;
+        }
+      }
+    } catch (error) {
+      failureMessage = error.message;
+      finalStatus = "failed";
+      if (isBackoffErrorCode(error.code)) {
+        this.setBackoff(error.code);
+      }
+    }
+
+    this.db.finishCrawlRun(runId, {
+      status: finalStatus,
+      itemsSeen: tweets.length,
+      itemsResolved: resolvedCount,
+      errorMessage: failureMessage
+    });
+
+    return {
+      itemsSeen: tweets.length,
       itemsResolved: resolvedCount,
       status: finalStatus,
       errorMessage: failureMessage

@@ -7,6 +7,13 @@ const STATUS_PATH_RE = /^\/([A-Za-z0-9_]+)\/status\/([0-9]+)(?:\/([^/?#]+)\/?([^
 const VIDEO_STATUS_PATH_RE =
   /^\/([A-Za-z0-9_]+)\/status\/([0-9]+)\/video\/([0-9]+)\/?$/;
 
+function stripUrls(value) {
+  return String(value || "")
+    .replaceAll(/https?:\/\/\S+/g, " ")
+    .replaceAll(/\s+/g, " ")
+    .trim();
+}
+
 function normalizeStatusCandidate(candidate) {
   if (!candidate || typeof candidate !== "string") {
     return null;
@@ -162,7 +169,7 @@ function getFullText(tweetNode, legacy) {
     tweetNode?.note_tweet?.note_tweet_results?.result?.richtext ||
     null;
 
-  return noteText || legacy?.full_text || legacy?.text || "";
+  return stripUrls(noteText || legacy?.full_text || legacy?.text || "");
 }
 
 function normalizeDate(value) {
@@ -176,6 +183,18 @@ function normalizeDate(value) {
   }
 
   return date.toISOString();
+}
+
+function normalizeAvatarUrl(value) {
+  if (!value || typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value
+    .replace(/^http:\/\//i, "https://")
+    .replace(/_normal(\.(?:jpg|jpeg|png|webp))(?=$|\?)/i, "_400x400$1");
+
+  return normalized || null;
 }
 
 export function extractVideoVariants(tweetNode) {
@@ -252,6 +271,12 @@ export function normalizeResolvedTweet(tweetNode, fallbackTweetId = null) {
     userNode?.legacy?.screen_name || userNode?.core?.screen_name || userNode?.screen_name || null;
   const authorName =
     userNode?.legacy?.name || userNode?.core?.name || userNode?.name || null;
+  const authorAvatarUrl = normalizeAvatarUrl(
+    userNode?.legacy?.profile_image_url_https ||
+      userNode?.legacy?.profile_image_url ||
+      userNode?.avatar?.image_url ||
+      null
+  );
   const tweetUrl = authorHandle ? `https://x.com/${authorHandle}/status/${restId}` : null;
   const text = getFullText(tweetNode, legacy);
   const postedAt = normalizeDate(legacy?.created_at);
@@ -262,6 +287,7 @@ export function normalizeResolvedTweet(tweetNode, fallbackTweetId = null) {
     tweetUrl,
     authorHandle,
     authorName,
+    authorAvatarUrl,
     text,
     postedAt,
     posterUrl: video.posterUrl,
@@ -468,6 +494,7 @@ export class PlaywrightResolver {
         items: Array.from(discovered.values()).map((item) => ({
           tweetId: item.tweetId,
           tweetUrl: item.tweetUrl,
+          durationText: item.durationText || null,
           rawDiscoveryPayload: {
             sourceHandle: handle,
             method: "playwright-media-grid",

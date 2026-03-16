@@ -11,6 +11,7 @@
     "dev": "node server/index.js",
     "crawl:once": "node server/crawlOnce.js",
     "resolve:pending": "node server/resolvePending.js",
+    "backfill:avatars": "node server/backfillAvatars.js",
     "playwright:install": "playwright install chromium",
     "test": "node --test test/*.test.js"
   },

@@ -12,17 +12,13 @@ const state = {
 
 const grid = document.querySelector("#feed-grid");
 const sourceFilter = document.querySelector("#source-filter");
-const sourceChips = document.querySelector("#source-chips");
 const feedStatus = document.querySelector("#feed-status");
 const feedSummary = document.querySelector("#feed-summary");
 const sentinel = document.querySelector("#feed-sentinel");
 const emptyStateTemplate = document.querySelector("#empty-state-template");
 
-const ACTIVE_SOURCE_CHIP_CLASS =
-  "rounded-full border border-[#d14d34] bg-[#211b17] px-4 py-2 text-sm font-medium text-white shadow-[0_12px_28px_rgba(33,27,23,0.14)] transition";
-const INACTIVE_SOURCE_CHIP_CLASS =
-  "rounded-full border border-[#eadfd4] bg-white/88 px-4 py-2 text-sm font-medium text-[#6d5d52] shadow-[0_10px_28px_rgba(58,27,12,0.04)] transition hover:border-[#d14d34]/35 hover:text-[#211b17]";
 const videoPreviewControllers = new Map();
+let colcade = null;
 
 const videoObserver = new IntersectionObserver(
   (entries) => {
@@ -52,7 +48,9 @@ function getSourceLabel(handle) {
 }
 
 function setStatus(label) {
-  feedStatus.textContent = label;
+  if (feedStatus) {
+    feedStatus.textContent = label;
+  }
 }
 
 function createFragment(markup) {
@@ -61,7 +59,59 @@ function createFragment(markup) {
   return template.content.firstElementChild;
 }
 
+function getFeedItems() {
+  return Array.from(grid?.querySelectorAll(".feed-grid-item") || []);
+}
+
+function createEmptyStateNode() {
+  return emptyStateTemplate?.content?.firstElementChild?.cloneNode(true) || null;
+}
+
+function ensureColcade() {
+  if (!grid || colcade || typeof window.Colcade !== "function") {
+    return colcade;
+  }
+
+  colcade = new window.Colcade(grid, {
+    columns: ".feed-grid-col",
+    items: ".feed-grid-item"
+  });
+
+  return colcade;
+}
+
+function destroyColcade() {
+  if (!colcade) {
+    return;
+  }
+
+  colcade.destroy();
+  colcade = null;
+}
+
+function syncColcadeLayout() {
+  ensureColcade()?.layout();
+}
+
+function appendFeedNodes(nodes) {
+  if (!nodes.length || !grid) {
+    return;
+  }
+
+  const instance = ensureColcade();
+  if (instance) {
+    instance.append(nodes);
+    return;
+  }
+
+  grid.querySelector(".feed-grid-col")?.append(...nodes);
+}
+
 function updateFeedSummary() {
+  if (!feedSummary) {
+    return;
+  }
+
   const sourceLabel = getSourceLabel(state.source);
 
   if (state.renderedCount === 0 && state.done) {
@@ -79,60 +129,37 @@ function updateFeedSummary() {
 }
 
 function renderEmptyState() {
-  if (grid.children.length > 0) {
+  if (!grid || getFeedItems().length > 0) {
     return;
   }
 
   grid.dataset.empty = "true";
-  const clone = emptyStateTemplate.content.cloneNode(true);
-  grid.appendChild(clone);
+  syncColcadeLayout();
+  const emptyStateNode = createEmptyStateNode();
+  if (emptyStateNode) {
+    appendFeedNodes([emptyStateNode]);
+  }
   updateFeedSummary();
 }
 
 function clearFeed() {
+  if (!grid) {
+    return;
+  }
+
   for (const video of grid.querySelectorAll("video")) {
     videoObserver.unobserve(video);
     videoPreviewControllers.get(video)?.destroy();
     videoPreviewControllers.delete(video);
   }
 
+  const items = getFeedItems();
+  destroyColcade();
+  for (const item of items) {
+    item.remove();
+  }
   grid.dataset.empty = "false";
-  grid.replaceChildren();
-}
-
-function syncActiveSourceChip() {
-  for (const button of sourceChips.querySelectorAll("button")) {
-    const active = button.dataset.source === state.source;
-    button.className = active ? ACTIVE_SOURCE_CHIP_CLASS : INACTIVE_SOURCE_CHIP_CLASS;
-    button.setAttribute("aria-pressed", active ? "true" : "false");
-  }
-}
-
-function renderSourceChips(sources) {
-  sourceChips.replaceChildren();
-
-  const makeChip = (handle, label) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.dataset.source = handle;
-    button.className = INACTIVE_SOURCE_CHIP_CLASS;
-    button.textContent = label;
-    button.addEventListener("click", () => {
-      applySource(handle).catch((error) => {
-        setStatus("筛选失败");
-        console.error(error);
-      });
-    });
-    return button;
-  };
-
-  sourceChips.append(makeChip("", "全部"));
-
-  for (const source of sources) {
-    sourceChips.append(makeChip(source.handle, `@${source.handle}`));
-  }
-
-  syncActiveSourceChip();
+  ensureColcade();
 }
 
 async function fetchJson(url) {
@@ -151,10 +178,9 @@ async function loadSources() {
     .sort(
       (left, right) => right.publishedCount - left.publishedCount || left.handle.localeCompare(right.handle)
     );
-  const activeSources = enabledSources.filter(
-    (source) => source.publishedCount > 0 || source.pendingCount > 0
-  );
-  const spotlightSources = activeSources.length > 0 ? activeSources : enabledSources;
+  if (!sourceFilter) {
+    return;
+  }
 
   sourceFilter.replaceChildren(createFragment('<option value="">全部来源</option>'));
 
@@ -164,8 +190,6 @@ async function loadSources() {
     option.textContent = `@${source.handle} · ${source.publishedCount}`;
     sourceFilter.append(option);
   }
-
-  renderSourceChips(spotlightSources);
 
   if (!enabledSources.length) {
     setStatus("等待配置来源");
@@ -184,8 +208,9 @@ function resetFeed() {
 
 async function applySource(nextSource) {
   state.source = nextSource;
-  sourceFilter.value = nextSource;
-  syncActiveSourceChip();
+  if (sourceFilter) {
+    sourceFilter.value = nextSource;
+  }
   resetFeed();
   await loadFeed();
 }
@@ -225,10 +250,12 @@ async function loadFeed() {
     }
 
     grid.dataset.empty = "false";
+    syncColcadeLayout();
 
-    for (const tweet of payload.items) {
-      const node = createFragment(renderFeedItem(tweet));
-      grid.append(node);
+    const nodes = payload.items.map((tweet) => createFragment(renderFeedItem(tweet)));
+    appendFeedNodes(nodes);
+
+    for (const node of nodes) {
       const video = node.querySelector("video");
       if (video) {
         videoPreviewControllers.set(video, installHoverVideoPreview(node, video));
@@ -243,7 +270,9 @@ async function loadFeed() {
     setStatus(state.done ? "已经到底了" : "继续下滑加载");
   } catch (error) {
     setStatus("内容加载失败");
-    feedSummary.textContent = "加载失败，请稍后重试";
+    if (feedSummary) {
+      feedSummary.textContent = "加载失败，请稍后重试";
+    }
     console.error(error);
   } finally {
     if (loadToken === state.loadToken) {
@@ -264,11 +293,14 @@ const feedObserver = new IntersectionObserver(
   }
 );
 
-sourceFilter.addEventListener("change", async (event) => {
-  await applySource(event.target.value);
-});
+if (sourceFilter) {
+  sourceFilter.addEventListener("change", async (event) => {
+    await applySource(event.target.value);
+  });
+}
 
 async function bootstrap() {
+  ensureColcade();
   await loadSources();
   resetFeed();
   await loadFeed();

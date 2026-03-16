@@ -5,6 +5,13 @@
 @layer base {
   :root {
     color-scheme: light;
+    --plyr-control-radius: 9999px;
+    --plyr-control-icon-size: 15px;
+    --plyr-font-family: "Plus Jakarta Sans", sans-serif;
+    --plyr-menu-background: rgba(255, 255, 255, 0.98);
+    --plyr-menu-color: #111827;
+    --plyr-tooltip-background: rgba(17, 24, 39, 0.92);
+    --plyr-video-controls-background: linear-gradient(180deg, rgba(17, 24, 39, 0) 0%, rgba(17, 24, 39, 0.8) 100%);
   }
 
   html {
@@ -13,10 +20,7 @@
 
   body {
     min-height: 100vh;
-    background:
-      radial-gradient(circle at top left, rgba(255, 255, 255, 0.78), transparent 28%),
-      radial-gradient(circle at 84% 10%, rgba(255, 211, 181, 0.52), transparent 20%),
-      linear-gradient(180deg, #fcf7f2 0%, #f6efe7 46%, #efe6dc 100%);
+    background: #ffffff;
     font-family: "Plus Jakarta Sans", sans-serif;
   }
 
@@ -31,15 +35,62 @@
 }
 
 @layer components {
-  .feed-waterfall {
-    column-fill: balance;
+  .feed-grid {
+    @apply flex items-start gap-3 sm:gap-4 lg:gap-5 xl:gap-6 2xl:gap-7;
   }
 
-  .feed-waterfall[data-empty="true"] {
-    column-count: 1;
+  .feed-grid-col {
+    flex: 1 1 0%;
+    min-width: 0;
   }
 
-  .feed-waterfall > * {
-    break-inside: avoid;
+  .feed-card-player {
+    height: 100%;
+  }
+
+  .feed-card-player .plyr__video-wrapper,
+  .feed-card-player video,
+  .feed-card-player .plyr__poster {
+    height: 100%;
+  }
+
+  .feed-card-player video {
+    width: 100%;
+    object-fit: cover;
+  }
+
+  .feed-card-player .plyr__poster {
+    background-size: cover;
+  }
+
+  .feed-card-player .plyr__controls {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(0.5rem);
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+
+  .feed-card-player:hover .plyr__controls,
+  .feed-card-player:focus-within .plyr__controls,
+  .feed-card-player.is-previewing .plyr__controls {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  .feed-card-player .plyr__control--overlaid {
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.92);
+    color: #111827;
+  }
+
+  #feed-grid[data-empty="true"] .feed-grid-col {
+    display: none;
+  }
+
+  #feed-grid[data-empty="true"] .feed-grid-col:first-child {
+    display: block;
+    flex-basis: 100%;
+    width: 100%;
   }
 }

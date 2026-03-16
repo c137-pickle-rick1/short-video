@@ -21,6 +21,26 @@ function compactJson(value) {
   return `${text.slice(0, 49950)}...[truncated]`;
 }
 
+function extractDurationTextFromDiscoveryPayload(rawDiscoveryPayload) {
+  if (!rawDiscoveryPayload) {
+    return null;
+  }
+
+  const payload =
+    typeof rawDiscoveryPayload === "string"
+      ? (() => {
+          try {
+            return JSON.parse(rawDiscoveryPayload);
+          } catch {
+            return null;
+          }
+        })()
+      : rawDiscoveryPayload;
+
+  const durationText = payload?.durationText || payload?.discoveredLink?.durationText || null;
+  return typeof durationText === "string" && durationText.trim() ? durationText.trim() : null;
+}
+
 export class AppDatabase {
   constructor(dbPath) {
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -45,6 +65,7 @@ export class AppDatabase {
         tweet_url TEXT NOT NULL,
         author_handle TEXT,
         author_name TEXT,
+        author_avatar_url TEXT,
         text TEXT,
         posted_at TEXT,
         poster_url TEXT,
@@ -92,6 +113,50 @@ export class AppDatabase {
       CREATE INDEX IF NOT EXISTS idx_crawl_runs_phase_source
         ON crawl_runs(phase, source_id, started_at DESC);
     `);
+
+    this.#ensureColumn("tweets", "author_avatar_url", "TEXT");
+    this.#ensureColumn("tweets", "duration_text", "TEXT");
+    this.#backfillTweetDurationsFromDiscoveryPayload();
+  }
+
+  #ensureColumn(tableName, columnName, definition) {
+    const columns = this.db.prepare(`PRAGMA table_info(${tableName})`).all();
+    if (columns.some((column) => column.name === columnName)) {
+      return;
+    }
+
+    this.db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+  }
+
+  #backfillTweetDurationsFromDiscoveryPayload() {
+    const rows = this.db
+      .prepare(
+        `
+          SELECT tweet_id AS tweetId, raw_discovery_payload AS rawDiscoveryPayload
+          FROM tweets
+          WHERE (duration_text IS NULL OR TRIM(duration_text) = '')
+            AND raw_discovery_payload IS NOT NULL
+        `
+      )
+      .all();
+
+    if (!rows.length) {
+      return;
+    }
+
+    const update = this.db.prepare("UPDATE tweets SET duration_text = ? WHERE tweet_id = ?");
+    const tx = this.db.transaction((items) => {
+      for (const row of items) {
+        const durationText = extractDurationTextFromDiscoveryPayload(row.rawDiscoveryPayload);
+        if (!durationText) {
+          continue;
+        }
+
+        update.run(durationText, row.tweetId);
+      }
+    });
+
+    tx(rows);
   }
 
   close() {
@@ -143,25 +208,46 @@ export class AppDatabase {
       .run(nowIso(), sourceId);
   }
 
-  insertDiscoveredTweet({ tweetId, sourceId, tweetUrl, rawDiscoveryPayload }) {
-    const result = this.db
+  insertDiscoveredTweet({ tweetId, sourceId, tweetUrl, rawDiscoveryPayload, durationText = null }) {
+    const normalizedDurationText = durationText || extractDurationTextFromDiscoveryPayload(rawDiscoveryPayload);
+    const compactDiscoveryPayload = compactJson(rawDiscoveryPayload);
+    const insertResult = this.db
       .prepare(
         `
           INSERT INTO tweets (
             tweet_id,
             source_id,
             tweet_url,
+            duration_text,
             status,
             raw_discovery_payload,
             ingested_at
           )
-          VALUES (?, ?, ?, 'pending', ?, ?)
+          VALUES (?, ?, ?, ?, 'pending', ?, ?)
           ON CONFLICT(tweet_id) DO NOTHING
         `
       )
-      .run(tweetId, sourceId, tweetUrl, compactJson(rawDiscoveryPayload), nowIso());
+      .run(tweetId, sourceId, tweetUrl, normalizedDurationText, compactDiscoveryPayload, nowIso());
 
-    return result.changes > 0;
+    if (insertResult.changes > 0) {
+      return true;
+    }
+
+    if (normalizedDurationText || compactDiscoveryPayload) {
+      this.db
+        .prepare(
+          `
+            UPDATE tweets
+            SET
+              duration_text = COALESCE(?, duration_text),
+              raw_discovery_payload = COALESCE(?, raw_discovery_payload)
+            WHERE tweet_id = ?
+          `
+        )
+        .run(normalizedDurationText, compactDiscoveryPayload, tweetId);
+    }
+
+    return false;
   }
 
   listPendingTweets(limit = null) {
@@ -171,12 +257,38 @@ export class AppDatabase {
         t.source_id AS sourceId,
         s.handle AS sourceHandle,
         t.tweet_url AS tweetUrl,
+        t.duration_text AS durationText,
         t.ingested_at AS ingestedAt
       FROM tweets t
       JOIN sources s ON s.id = t.source_id
       WHERE t.status = 'pending'
         AND s.enabled = 1
       ORDER BY t.ingested_at DESC, t.tweet_id DESC
+    `;
+
+    if (Number.isInteger(limit) && limit > 0) {
+      return this.db.prepare(`${baseQuery}\nLIMIT ?`).all(limit);
+    }
+
+    return this.db.prepare(baseQuery).all();
+  }
+
+  listPublishedTweetsMissingAvatar(limit = null) {
+    const baseQuery = `
+      SELECT
+        t.tweet_id AS tweetId,
+        t.source_id AS sourceId,
+        s.handle AS sourceHandle,
+        t.tweet_url AS tweetUrl,
+        t.status,
+        t.ingested_at AS ingestedAt,
+        t.resolved_at AS resolvedAt
+      FROM tweets t
+      JOIN sources s ON s.id = t.source_id
+      WHERE t.status IN ('resolved', 'external_only')
+        AND s.enabled = 1
+        AND (t.author_avatar_url IS NULL OR TRIM(t.author_avatar_url) = '')
+      ORDER BY COALESCE(t.resolved_at, t.ingested_at) DESC, t.tweet_id DESC
     `;
 
     if (Number.isInteger(limit) && limit > 0) {
@@ -199,9 +311,11 @@ export class AppDatabase {
             SET
               author_handle = ?,
               author_name = ?,
+              author_avatar_url = ?,
               text = ?,
               posted_at = ?,
               poster_url = ?,
+              duration_text = COALESCE(?, duration_text),
               status = ?,
               raw_resolve_payload = ?,
               resolved_at = ?
@@ -211,9 +325,11 @@ export class AppDatabase {
         .run(
           resolution.tweet?.authorHandle || null,
           resolution.tweet?.authorName || null,
+          resolution.tweet?.authorAvatarUrl || null,
           resolution.tweet?.text || null,
           resolution.tweet?.postedAt || null,
           resolution.tweet?.posterUrl || null,
+          resolution.tweet?.durationText || null,
           resolution.status,
           compactJson(resolution.rawPayload),
           nowIso(),
@@ -317,8 +433,10 @@ export class AppDatabase {
             t.tweet_url AS tweetUrl,
             t.author_handle AS authorHandle,
             t.author_name AS authorName,
+            t.author_avatar_url AS authorAvatarUrl,
             t.text,
             t.posted_at AS postedAt,
+            t.duration_text AS durationText,
             t.poster_url AS posterUrl,
             t.status,
             ma.url AS videoUrl,

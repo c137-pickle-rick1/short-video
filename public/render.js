@@ -7,6 +7,13 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+function stripUrls(value) {
+  return String(value || "")
+    .replaceAll(/https?:\/\/\S+/g, " ")
+    .replaceAll(/\s+/g, " ")
+    .trim();
+}
+
 export function formatFeedDate(value) {
   if (!value) {
     return "未知时间";
@@ -17,10 +24,45 @@ export function formatFeedDate(value) {
     return "未知时间";
   }
 
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short"
-  }).format(date);
+  const now = Date.now();
+  const diffMs = now - date.getTime();
+
+  if (diffMs < 0) {
+    return "刚刚";
+  }
+
+  const minuteMs = 60 * 1000;
+  const hourMs = 60 * minuteMs;
+  const dayMs = 24 * hourMs;
+  const weekMs = 7 * dayMs;
+  const monthMs = 30 * dayMs;
+  const yearMs = 365 * dayMs;
+
+  if (diffMs < minuteMs) {
+    return "刚刚";
+  }
+
+  if (diffMs < hourMs) {
+    return `${Math.floor(diffMs / minuteMs)}分钟前`;
+  }
+
+  if (diffMs < dayMs) {
+    return `${Math.floor(diffMs / hourMs)}小时前`;
+  }
+
+  if (diffMs < weekMs) {
+    return `${Math.floor(diffMs / dayMs)}天前`;
+  }
+
+  if (diffMs < monthMs) {
+    return `${Math.floor(diffMs / weekMs)}周前`;
+  }
+
+  if (diffMs < yearMs) {
+    return `${Math.floor(diffMs / monthMs)}个月前`;
+  }
+
+  return `${Math.floor(diffMs / yearMs)}年前`;
 }
 
 function getAuthorInitial(value) {
@@ -53,32 +95,47 @@ function getMediaFrameClass(tweet) {
   return (tweet.text || "").length > 110 ? "aspect-[3/4]" : "aspect-[4/5]";
 }
 
+function formatVideoDurationText(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return "";
+  }
+
+  const parts = normalized.split(":").map((part) => part.trim());
+  if (parts.length < 2 || parts.length > 3 || parts.some((part) => !/^\d+$/.test(part))) {
+    return normalized;
+  }
+
+  return parts.map((part, index) => (index === 0 ? String(Number(part)) : part.padStart(2, "0"))).join(":");
+}
+
 export function renderFeedItem(tweet) {
-  const safeText = escapeHtml(tweet.text || "未填写内容文案");
+  const displayText = stripUrls(tweet.text) || "未填写内容文案";
+  const safeText = escapeHtml(displayText);
   const safeAuthor = escapeHtml(tweet.authorName || `@${tweet.authorHandle || "unknown"}`);
   const safeHandle = escapeHtml(tweet.authorHandle || "unknown");
-  const safeSource = escapeHtml(tweet.sourceHandle || "source");
   const safePoster = escapeHtml(tweet.posterUrl || "");
-  const safeTweetUrl = escapeHtml(tweet.tweetUrl || "#");
   const safeVideoUrl = escapeHtml(tweet.videoUrl || "");
   const safeStatus = escapeHtml(tweet.status || "pending");
+  const safeAuthorAvatarUrl = escapeHtml(tweet.authorAvatarUrl || "");
   const authorInitial = escapeHtml(getAuthorInitial(tweet.authorName || tweet.authorHandle));
   const frameClass = getMediaFrameClass(tweet);
-  const statusLabel = tweet.status === "resolved" && tweet.videoUrl ? "本地直放" : "外链回退";
-  const behaviorLabel = tweet.status === "resolved" && tweet.videoUrl ? "悬停播放预览" : "点击跳转查看";
+  const durationText = formatVideoDurationText(tweet.durationText);
+  const safeDurationText = escapeHtml(durationText);
   const mediaMarkup =
     tweet.status === "resolved" && tweet.videoUrl
       ? `
           <video
-            class="h-full w-full object-cover"
-            src="${safeVideoUrl}"
-            poster="${safePoster}"
+            class="js-feed-player h-full w-full object-cover"
+            data-poster="${safePoster}"
             muted
             loop
             playsinline
             disablepictureinpicture
             preload="metadata"
-          ></video>
+          >
+            <source src="${safeVideoUrl}" />
+          </video>
         `
       : `
           <img
@@ -91,61 +148,48 @@ export function renderFeedItem(tweet) {
 
   return `
     <article
-      class="group mb-5 inline-block w-full overflow-hidden rounded-[1.55rem] border border-white/70 bg-[rgba(255,250,246,0.95)] shadow-[0_24px_48px_rgba(58,27,12,0.10)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:shadow-[0_26px_58px_rgba(58,27,12,0.15)] animate-card-in"
+      class="feed-grid-item group mb-3 inline-block w-full overflow-hidden rounded-3xl border border-gray-200 bg-white/95 shadow-sm backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:shadow-md sm:mb-4 lg:mb-5 xl:mb-6 2xl:mb-7"
       data-tweet-id="${escapeHtml(tweet.tweetId)}"
       data-status="${safeStatus}"
     >
-      <div class="relative ${frameClass} overflow-hidden bg-[#efe6de]">
+      <div class="relative ${frameClass} overflow-hidden bg-gray-100">
         ${mediaMarkup}
-        <div class="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(33,27,23,0.02)_0%,rgba(33,27,23,0.12)_100%)]"></div>
-        <div class="absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-3">
-          <div class="flex flex-wrap items-center gap-2">
-            <span class="rounded-full bg-[#fff4ef] px-2.5 py-1 text-[0.68rem] font-semibold tracking-[0.08em] text-[#d14d34]">
-              ${statusLabel}
-            </span>
-            <span class="rounded-full bg-[#211b17]/72 px-2.5 py-1 text-[0.68rem] font-medium text-white/92">
-              @${safeSource}
-            </span>
-          </div>
-          <a
-            class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/88 text-base text-[#211b17] shadow-[0_10px_24px_rgba(33,27,23,0.12)] transition hover:bg-white"
-            href="${safeTweetUrl}"
-            target="_blank"
-            rel="noreferrer"
-            aria-label="查看原帖"
-          >
-            ↗
-          </a>
-        </div>
-        <div class="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#211b17]/42 to-transparent"></div>
+        <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-black/5 to-black/10"></div>
+        <span
+          class="pointer-events-none absolute right-3 top-3 z-10 ${safeDurationText ? "" : "hidden "}rounded-full bg-black/15 px-2.5 py-1.5 text-sm font-semibold leading-none text-white backdrop-blur-sm"
+          data-video-duration
+        >${safeDurationText}</span>
       </div>
       <div class="grid gap-3 px-4 pb-4 pt-3">
-        <p class="overflow-hidden text-[1rem] font-semibold leading-6 text-[#211b17] [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+        <p class="line-clamp-2 overflow-hidden text-base font-semibold leading-6 text-gray-900">
           ${safeText}
         </p>
-        <div class="flex items-center gap-2 text-[0.78rem] text-[#8b7768]">
-          <span>${formatFeedDate(tweet.postedAt)}</span>
-          <span class="h-1 w-1 rounded-full bg-current/70"></span>
-          <span>${behaviorLabel}</span>
-        </div>
         <div class="flex items-center justify-between gap-3">
           <div class="flex min-w-0 items-center gap-3">
-            <span class="flex h-10 w-10 items-center justify-center rounded-full bg-[#fde9e0] text-sm font-semibold text-[#d14d34]">
-              ${authorInitial}
-            </span>
+            ${
+              safeAuthorAvatarUrl
+                ? `
+                    <img
+                      class="h-7 w-7 rounded-full object-cover ring-1 ring-gray-200"
+                      src="${safeAuthorAvatarUrl}"
+                      alt="${safeAuthor} 的头像"
+                      loading="lazy"
+                      referrerpolicy="no-referrer"
+                    />
+                  `
+                : `
+                    <span class="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-700">
+                      ${authorInitial}
+                    </span>
+                  `
+            }
             <div class="min-w-0">
-              <p class="truncate text-sm font-semibold text-[#211b17]">${safeAuthor}</p>
-              <p class="truncate text-xs text-[#8b7768]">@${safeHandle}</p>
+              <p class="truncate text-sm font-semibold text-gray-900">${safeAuthor}</p>
             </div>
           </div>
-          <a
-            class="inline-flex min-h-[2.7rem] items-center justify-center rounded-full bg-[#211b17] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#342a24]"
-            href="${safeTweetUrl}"
-            target="_blank"
-            rel="noreferrer"
-          >
-            查看原帖
-          </a>
+          <div class="shrink-0 text-xs text-gray-500">
+            <span>${formatFeedDate(tweet.postedAt)}</span>
+          </div>
         </div>
       </div>
     </article>

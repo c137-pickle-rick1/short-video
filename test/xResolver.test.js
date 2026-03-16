@@ -60,7 +60,9 @@ const samplePayload = {
                           result: {
                             legacy: {
                               name: "Jina AI",
-                              screen_name: "JinaAI_"
+                              screen_name: "JinaAI_",
+                              profile_image_url_https:
+                                "https://pbs.twimg.com/profile_images/123/avatar_normal.jpg"
                             }
                           }
                         }
@@ -88,9 +90,24 @@ test("normalizeResolvedTweet extracts highest bitrate mp4 variants", () => {
   const tweet = normalizeResolvedTweet(tweetNode, "777");
 
   assert.equal(tweet.authorHandle, "JinaAI_");
+  assert.equal(
+    tweet.authorAvatarUrl,
+    "https://pbs.twimg.com/profile_images/123/avatar_400x400.jpg"
+  );
   assert.equal(tweet.mediaAssets.length, 2);
   assert.equal(tweet.mediaAssets[0].isPrimary, true);
   assert.match(tweet.mediaAssets[0].url, /720x1280\/b\.mp4$/);
+});
+
+test("normalizeResolvedTweet strips trailing links from tweet text", () => {
+  const payload = structuredClone(samplePayload);
+  payload.data.threaded_conversation_with_injections_v2.instructions[0].entries[0].content.itemContent.tweet_results.result.legacy.full_text =
+    "Video post body https://t.co/example";
+
+  const tweetNode = selectTweetFromPayload(payload, "777");
+  const tweet = normalizeResolvedTweet(tweetNode, "777");
+
+  assert.equal(tweet.text, "Video post body");
 });
 
 test("extractMediaGridVideoLinks keeps only canonical video links for the target handle", () => {

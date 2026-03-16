@@ -15,6 +15,7 @@ test("GET /api/feed paginates and filters by source", async () => {
       tweetId: "2000",
       sourceId: source.id,
       tweetUrl: "https://x.com/demo/status/2000",
+      durationText: "0:37",
       rawDiscoveryPayload: { link: "x" }
     });
     temp.db.applyResolution("2000", {
@@ -22,6 +23,7 @@ test("GET /api/feed paginates and filters by source", async () => {
       tweet: {
         authorHandle: "demo",
         authorName: "Demo",
+        authorAvatarUrl: "https://example.com/avatar.jpg",
         text: "API test tweet",
         postedAt: "2025-02-14T06:37:00.000Z",
         posterUrl: "https://example.com/poster.jpg"
@@ -49,6 +51,8 @@ test("GET /api/feed paginates and filters by source", async () => {
     assert.equal(response.status, 200);
     assert.equal(response.body.items.length, 1);
     assert.equal(response.body.items[0].videoUrl, "/api/media/2000");
+    assert.equal(response.body.items[0].authorAvatarUrl, "https://example.com/avatar.jpg");
+    assert.equal(response.body.items[0].durationText, "0:37");
   } finally {
     temp.cleanup();
   }
