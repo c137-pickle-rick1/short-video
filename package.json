@@ -5,12 +5,11 @@
   "type": "module",
   "scripts": {
     "auth": "npm run php:auth",
-    "build:vendor": "node scripts/syncVendorAssets.mjs",
     "build:styles": "tailwindcss -i ./laravel/resources/shortvideo/styles.css -o ./laravel/public/styles.css --minify",
     "db:migrate": "cd laravel && php artisan migrate --force",
     "dev:styles": "tailwindcss -i ./laravel/resources/shortvideo/styles.css -o ./laravel/public/styles.css --watch",
-    "predev": "npm run build:vendor && npm run build:styles",
-    "pretest": "npm run build:vendor && npm run build:styles",
+    "predev": "npm run build:styles",
+    "pretest": "npm run build:styles",
     "dev": "npm run php:dev",
     "crawl:once": "npm run php:crawl:once",
     "resolve:pending": "npm run php:resolve:pending",
@@ -35,12 +34,6 @@
     "playwright": "^1.58.2"
   },
   "devDependencies": {
-    "@fontsource/cormorant-garamond": "^5.2.11",
-    "@fontsource/plus-jakarta-sans": "^5.2.8",
-    "@phosphor-icons/web": "^2.1.1",
-    "colcade": "^0.2.0",
-    "hls.js": "^1.6.14",
-    "plyr": "^3.8.4",
     "tailwindcss": "^3.4.19"
   }
 }

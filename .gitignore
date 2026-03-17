@@ -4,4 +4,6 @@ data/app.db-shm
 data/app.db-wal
 data/browser-profile/
 data/x-storage-state.json
+laravel/storage/logs/*
+laravel/storage/framework/sessions/*
 .DS_Store
