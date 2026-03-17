@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "auth": "node server/auth.js",
+    "build:vendor": "node scripts/syncVendorAssets.mjs",
     "build:styles": "tailwindcss -i ./src/styles.css -o ./public/styles.css --minify",
+    "db:migrate": "node server/migrate.js",
     "dev:styles": "tailwindcss -i ./src/styles.css -o ./public/styles.css --watch",
-    "predev": "npm run build:styles",
+    "predev": "npm run build:vendor && npm run build:styles",
+    "pretest": "npm run build:vendor",
     "dev": "node server/index.js",
     "crawl:once": "node server/crawlOnce.js",
     "resolve:pending": "node server/resolvePending.js",
@@ -24,6 +27,11 @@
     "playwright": "^1.58.2"
   },
   "devDependencies": {
+    "@fontsource/cormorant-garamond": "^5.2.11",
+    "@fontsource/plus-jakarta-sans": "^5.2.8",
+    "@phosphor-icons/web": "^2.1.1",
+    "colcade": "^0.2.0",
+    "plyr": "^3.8.4",
     "supertest": "^7.1.1",
     "tailwindcss": "^3.4.19"
   }

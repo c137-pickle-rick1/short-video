@@ -1,5 +1,5 @@
 import { ensureAppDirectories, resolveAppConfig } from "./config.js";
-import { openAuthBrowser } from "./xResolver.js";
+import { openAuthBrowser } from "./infra/resolve/playwrightResolver.js";
 
 const config = resolveAppConfig();
 ensureAppDirectories(config);

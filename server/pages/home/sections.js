@@ -1,60 +1,42 @@
-<!doctype html>
-<html lang="zh-CN">
-  <head>
+import { renderFeedEmptyState, renderFeedItem } from "../../../shared/feed/render/templatesEntry.js";
+
+import { escapeHtml } from "./helpers.js";
+
+function renderFeedGridItems(items, isEmpty) {
+  if (isEmpty) {
+    return renderFeedEmptyState();
+  }
+
+  return items.map((item) => renderFeedItem(item)).join("");
+}
+
+function renderActiveSourceOption(activeSourceHandle) {
+  if (!activeSourceHandle) {
+    return "";
+  }
+
+  return `
+        <option value="${escapeHtml(activeSourceHandle)}" selected>
+          ${escapeHtml(`@${activeSourceHandle}`)}
+        </option>
+      `;
+}
+
+export function renderDocumentHead(pageTitle) {
+  return `
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Lagos Explore Feed</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css"
-    />
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css"
-    />
-    <link rel="stylesheet" href="https://cdn.plyr.io/3.8.4/plyr.css" />
+    <title>${escapeHtml(pageTitle)}</title>
+    <link rel="stylesheet" href="/vendor/fonts/fonts.css" />
+    <link rel="stylesheet" href="/vendor/phosphor/regular/style.css" />
+    <link rel="stylesheet" href="/vendor/phosphor/fill/style.css" />
+    <link rel="stylesheet" href="/vendor/plyr/plyr.css" />
     <link rel="stylesheet" href="/styles.css" />
-  </head>
-  <body class="overflow-x-hidden bg-white text-gray-900 antialiased">
-    <main class="relative z-10">
-      <header class="fixed inset-x-0 top-0 z-40 w-full border-b border-gray-200 bg-white/95 backdrop-blur-xl">
-        <div class="mx-auto flex w-full max-w-screen-2xl items-center gap-3 px-3 py-3 sm:gap-4 sm:px-4 sm:py-4 lg:gap-5 lg:px-5 lg:py-4 xl:gap-6 xl:px-6 xl:py-4 2xl:gap-7 2xl:px-7 2xl:py-4">
-          <div class="shrink-0">
-            <div class="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-gray-100 sm:h-12 sm:w-12">
-              <span class="h-2.5 w-2.5 rounded-full bg-gray-900"></span>
-            </div>
-          </div>
-          <label
-            class="mx-auto flex h-11 w-full min-w-0 max-w-[480px] items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 sm:h-12 sm:gap-3 sm:px-4"
-          >
-            <i class="ph ph-magnifying-glass text-base text-gray-500" aria-hidden="true"></i>
-            <input
-              type="search"
-              placeholder="搜索视频、作者或关键词"
-              class="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
-            />
-          </label>
-          <button
-            type="button"
-            aria-label="切换语言"
-            title="切换语言"
-            class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-200 text-lg text-gray-600 transition hover:text-gray-900 sm:h-12 sm:w-12"
-          >
-            <i class="ph ph-globe text-xl leading-none" aria-hidden="true"></i>
-          </button>
-        </div>
-      </header>
+  `;
+}
 
-      <div class="h-[68px] sm:h-20" aria-hidden="true"></div>
-
-      <div class="mx-auto w-full max-w-screen-2xl">
-        <div class="flex flex-col gap-3 p-3 sm:gap-4 sm:p-4 lg:gap-5 lg:p-5 xl:gap-6 xl:p-6 2xl:gap-7 2xl:p-7 lg:flex-row lg:items-start">
+export function renderDesktopNavigation() {
+  return `
           <aside class="hidden lg:block lg:sticky lg:top-[100px] lg:w-56 lg:flex-none xl:top-[104px] 2xl:top-[108px]">
             <nav aria-label="桌面主导航">
               <div class="grid gap-2">
@@ -90,7 +72,11 @@
               </div>
             </nav>
           </aside>
+  `;
+}
 
+export function renderMobileNavigation() {
+  return `
           <nav
             aria-label="移动主导航"
             class="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white/95 px-3 py-2 backdrop-blur-2xl lg:hidden"
@@ -127,39 +113,57 @@
               </button>
             </div>
           </nav>
+  `;
+}
 
-          <section class="min-w-0 flex-1">
-            <section class="feed-grid" id="feed-grid" aria-live="polite" data-empty="false">
-              <div class="feed-grid-col"></div>
+export function renderFeedToolbar({
+  activeSourceHandle,
+  feedSummaryText,
+  feedStatusText
+}) {
+  return `
+            <div class="mb-4 flex flex-col gap-3 rounded-[28px] border border-gray-200 bg-white/90 px-4 py-4 shadow-sm backdrop-blur-xl sm:px-5 lg:mb-5 lg:flex-row lg:items-center lg:justify-between lg:px-6">
+              <div class="min-w-0">
+                <p
+                  id="feed-summary"
+                  class="text-sm font-medium text-gray-700"
+                >${escapeHtml(feedSummaryText)}</p>
+                <p
+                  id="feed-status"
+                  class="mt-1 text-xs text-gray-500"
+                  aria-live="polite"
+                >${escapeHtml(feedStatusText)}</p>
+              </div>
+              <label class="inline-flex items-center gap-3 text-sm text-gray-600">
+                <span class="shrink-0 font-medium text-gray-700">来源</span>
+                <select
+                  id="source-filter"
+                  class="h-11 min-w-[180px] rounded-full border border-gray-200 bg-gray-50 px-4 text-sm text-gray-900 outline-none transition focus:border-gray-300"
+                >
+                  <option value="" ${activeSourceHandle ? "" : "selected"}>全部来源</option>
+                  ${renderActiveSourceOption(activeSourceHandle)}
+                </select>
+              </label>
+            </div>
+  `;
+}
+
+export function renderFeedGrid(viewModel) {
+  return `
+            <section class="feed-grid" id="feed-grid" aria-live="polite" data-empty="${viewModel.feed.isEmpty}">
+              <div class="feed-grid-col">
+                ${renderFeedGridItems(viewModel.feed.items, viewModel.feed.isEmpty)}
+              </div>
               <div class="feed-grid-col"></div>
               <div class="feed-grid-col hidden xl:block"></div>
               <div class="feed-grid-col hidden 2xl:block"></div>
             </section>
             <div id="feed-sentinel" class="h-px" aria-hidden="true"></div>
-          </section>
-        </div>
-        <div class="h-24 lg:hidden" aria-hidden="true"></div>
-      </div>
-    </main>
+  `;
+}
 
-    <template id="empty-state-template">
-      <article
-        class="feed-grid-item mb-3 inline-block w-full overflow-hidden rounded-3xl border border-gray-200 bg-white/95 px-6 py-8 text-center shadow-xl backdrop-blur-2xl sm:mb-4 lg:mb-5 xl:mb-6 2xl:mb-7"
-        data-empty-state="true"
-      >
-        <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 text-xl text-gray-700">
-          ⌕
-        </div>
-        <h2 class="mt-4 text-2xl font-semibold tracking-tight text-gray-900">
-          还没有可展示的视频
-        </h2>
-        <p class="mt-3 text-sm leading-6 text-gray-500 sm:text-base">
-          先在 <code>config/sources.json</code> 启用来源并运行抓取。首页布局已经准备好，
-          一旦有数据就会按瀑布流方式展示出来。
-        </p>
-      </article>
-    </template>
-
+export function renderDetailModal() {
+  return `
     <div
       id="feed-detail-modal"
       class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/20 p-3 sm:p-5 xl:p-7"
@@ -175,9 +179,5 @@
       >
       </section>
     </div>
-
-    <script src="https://cdn.plyr.io/3.8.4/plyr.js"></script>
-    <script src="https://unpkg.com/colcade@0.2.0/colcade.js"></script>
-    <script type="module" src="/app.js"></script>
-  </body>
-</html>
+  `;
+}

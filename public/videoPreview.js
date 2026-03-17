@@ -8,6 +8,8 @@ function safeResetCurrentTime(target) {
   }
 }
 
+const PLYR_ICON_URL = "/vendor/plyr/plyr.svg";
+
 function formatDurationLabel(seconds) {
   if (!Number.isFinite(seconds) || seconds <= 0) {
     return "";
@@ -152,6 +154,7 @@ function createPlyrPreviewController(container, video, Plyr) {
         global: false
       },
       muted: true,
+      iconUrl: PLYR_ICON_URL,
       playsinline: true,
       resetOnEnd: true,
       tooltips: {
@@ -305,6 +308,7 @@ export function installDetailVideoPlayer(container, video) {
         active: video.loop
       },
       muted: video.muted,
+      iconUrl: PLYR_ICON_URL,
       playsinline: true,
       resetOnEnd: false,
       tooltips: {

@@ -3,7 +3,19 @@ import test from "node:test";
 
 import { installHoverVideoPreview } from "../public/videoPreview.js";
 
-class FakeTarget extends EventTarget {
+if (typeof globalThis.HTMLElement === "undefined") {
+  globalThis.HTMLElement = class HTMLElement extends EventTarget {};
+}
+
+if (typeof globalThis.HTMLVideoElement === "undefined") {
+  globalThis.HTMLVideoElement = class HTMLVideoElement extends EventTarget {};
+}
+
+if (typeof globalThis.window === "undefined") {
+  globalThis.window = {};
+}
+
+class FakeTarget extends globalThis.HTMLElement {
   constructor() {
     super();
     this.nodes = new Set();
@@ -12,9 +24,13 @@ class FakeTarget extends EventTarget {
   contains(node) {
     return this.nodes.has(node);
   }
+
+  querySelector() {
+    return null;
+  }
 }
 
-class FakeVideo extends EventTarget {
+class FakeVideo extends globalThis.HTMLVideoElement {
   constructor() {
     super();
     this.controls = true;

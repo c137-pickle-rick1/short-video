@@ -16,6 +16,27 @@ function parseBoolean(value) {
   return !["0", "false", "no", "off"].includes(String(value || "").toLowerCase());
 }
 
+function parseDiscoveryMode(value) {
+  const normalized = String(value || "hybrid")
+    .trim()
+    .toLowerCase();
+
+  if (normalized === "hybrid" || normalized === "jina" || normalized === "browser") {
+    return normalized;
+  }
+
+  throw new Error("DISCOVERY_MODE must be one of: hybrid, jina, browser");
+}
+
+function parsePositiveInteger(value, fallback, label) {
+  const normalized = Number(value ?? fallback);
+  if (!Number.isInteger(normalized) || normalized <= 0) {
+    throw new Error(`${label} must be a positive integer`);
+  }
+
+  return normalized;
+}
+
 export function resolveAppConfig(env = process.env) {
   const cwd = process.cwd();
   const port = Number(env.PORT || 3000);
@@ -29,6 +50,13 @@ export function resolveAppConfig(env = process.env) {
     env.X_STORAGE_STATE_PATH || "./data/x-storage-state.json"
   );
   const scrapeIntervalMinutes = Number(env.SCRAPE_INTERVAL_MINUTES || 10);
+  const discoveryMode = parseDiscoveryMode(env.DISCOVERY_MODE || "hybrid");
+  const mediaProxyTimeoutMs = parsePositiveInteger(
+    env.MEDIA_PROXY_TIMEOUT_MS,
+    15000,
+    "MEDIA_PROXY_TIMEOUT_MS"
+  );
+  const runMigrationsOnBoot = parseBoolean(env.RUN_MIGRATIONS_ON_BOOT ?? true);
   const sourceConfigPath = path.resolve(cwd, "./config/sources.json");
   const publicDir = path.resolve(cwd, "./public");
 
@@ -39,6 +67,9 @@ export function resolveAppConfig(env = process.env) {
     browserProfileDir,
     storageStatePath,
     scrapeIntervalMinutes,
+    discoveryMode,
+    mediaProxyTimeoutMs,
+    runMigrationsOnBoot,
     sourceConfigPath,
     publicDir
   };

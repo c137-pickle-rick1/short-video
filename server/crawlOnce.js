@@ -1,13 +1,14 @@
 import { bootstrapApplication } from "./bootstrap.js";
 
-const runtime = await bootstrapApplication({ logger: console });
+const runtime = await bootstrapApplication({
+  logger: console,
+  enableHttpServer: false,
+  enableScheduler: false
+});
 
 try {
   const result = await runtime.crawler.crawlOnce();
   console.log(JSON.stringify(result, null, 2));
 } finally {
-  runtime.scheduler.stop();
-  await runtime.resolverClient.close().catch(() => {});
-  runtime.db.close();
-  runtime.httpServer.close();
+  await runtime.close();
 }
