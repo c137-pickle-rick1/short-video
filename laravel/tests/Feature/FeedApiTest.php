@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\Source;
+use App\Models\User;
+use App\Models\Video;
 use App\ShortVideo\Services\RuntimeStateStore;
 use Tests\TestCase;
 
@@ -17,6 +20,8 @@ final class FeedApiTest extends TestCase
         $this->insertResolvedTweet($repository, $source['id'], [
             'tweetId' => '2000',
             'tweet' => [
+                'authorHandle' => 'demo',
+                'authorName' => 'Demo',
                 'text' => 'API test tweet',
             ],
             'mediaAssets' => [
@@ -42,13 +47,206 @@ final class FeedApiTest extends TestCase
         ]);
 
         $response = $this->getJson('/api/feed?source=demo&limit=5');
+        $sourceModel = Source::query()->find($source['id']);
 
         $response->assertOk();
         $response->assertJsonCount(1, 'items');
         $response->assertJsonPath('items.0.videoUrl', '/api/media/2000');
         $response->assertJsonPath('items.0.hlsUrl', 'https://example.com/video.m3u8');
         $response->assertJsonPath('items.0.authorAvatarUrl', 'https://example.com/avatar.jpg');
+        $response->assertJsonPath('items.0.authorUserId', $sourceModel?->user_id);
+        $response->assertJsonPath('items.0.authorAccountType', 'external_creator');
         $response->assertJsonPath('items.0.durationText', '0:21');
+        $response->assertJsonPath('items.0.engagement.likeCount', 0);
+        $response->assertJsonPath('items.0.engagement.bookmarkedByViewer', false);
+    }
+
+    public function test_featured_feed_prefers_stronger_engagement_over_recency(): void
+    {
+        $repository = $this->useShortVideoDatabase();
+        [$source] = $repository->syncSources([
+            ['handle' => 'demo', 'enabled' => true],
+        ]);
+
+        $this->insertResolvedTweet($repository, $source['id'], [
+            'tweetId' => '2301',
+            'tweet' => [
+                'authorHandle' => 'demo',
+                'authorName' => 'Demo',
+                'text' => 'Older but stronger',
+                'postedAt' => now()->subDays(2)->toISOString(),
+            ],
+        ]);
+        $this->insertResolvedTweet($repository, $source['id'], [
+            'tweetId' => '2302',
+            'tweet' => [
+                'authorHandle' => 'demo',
+                'authorName' => 'Demo',
+                'text' => 'Newer but weaker',
+                'postedAt' => now()->subHours(3)->toISOString(),
+            ],
+        ]);
+
+        $olderVideo = Video::query()->where('tweet_id', '2301')->firstOrFail();
+        $newerVideo = Video::query()->where('tweet_id', '2302')->firstOrFail();
+        $viewer = User::factory()->count(3)->create();
+
+        $viewer[0]->likedVideos()->attach($olderVideo->id);
+        $viewer[1]->likedVideos()->attach($olderVideo->id);
+        $viewer[2]->bookmarkedVideos()->attach($olderVideo->id);
+        $viewer[0]->videoComments()->create([
+            'video_id' => $olderVideo->id,
+            'body' => '这条值得排前面',
+        ]);
+        $repository->recordVideoView($olderVideo->id, $viewer[0]->id, 'featured-seen-1');
+        $repository->recordVideoView($olderVideo->id, $viewer[1]->id, 'featured-seen-2');
+        $repository->recordVideoView($newerVideo->id, $viewer[2]->id, 'featured-seen-3');
+
+        $response = $this->getJson('/api/feed?mode=featured&limit=5');
+
+        $response->assertOk();
+        $response->assertJsonPath('items.0.tweetId', '2301');
+        $response->assertJsonPath('items.0.engagement.commentCount', 1);
+        $response->assertJsonPath('items.1.tweetId', '2302');
+    }
+
+    public function test_featured_feed_falls_back_to_publish_time_when_interactions_are_empty(): void
+    {
+        $repository = $this->useShortVideoDatabase();
+        [$source] = $repository->syncSources([
+            ['handle' => 'demo', 'enabled' => true],
+        ]);
+
+        $this->insertResolvedTweet($repository, $source['id'], [
+            'tweetId' => '2303',
+            'tweet' => [
+                'postedAt' => now()->subHours(5)->toISOString(),
+                'text' => 'Older no engagement',
+            ],
+        ]);
+        $this->insertResolvedTweet($repository, $source['id'], [
+            'tweetId' => '2304',
+            'tweet' => [
+                'postedAt' => now()->subHour()->toISOString(),
+                'text' => 'Newer no engagement',
+            ],
+        ]);
+
+        $response = $this->getJson('/api/feed?mode=featured&limit=5');
+
+        $response->assertOk();
+        $response->assertJsonPath('items.0.tweetId', '2304');
+        $response->assertJsonPath('items.1.tweetId', '2303');
+    }
+
+    public function test_following_feed_requires_active_viewer(): void
+    {
+        $this->useShortVideoDatabase();
+
+        $this->getJson('/api/feed?mode=following')
+            ->assertStatus(401)
+            ->assertJsonPath('message', 'Login required for following feed.');
+    }
+
+    public function test_following_feed_returns_only_followed_creators_in_desc_order(): void
+    {
+        $repository = $this->useShortVideoDatabase();
+        $viewer = User::factory()->create([
+            'username' => 'follow_tester',
+            'email' => 'follow_tester@example.com',
+        ]);
+        [$alpha, $beta] = $repository->syncSources([
+            ['handle' => 'alpha', 'enabled' => true],
+            ['handle' => 'beta', 'enabled' => true],
+        ]);
+
+        $this->insertResolvedTweet($repository, $alpha['id'], [
+            'tweetId' => '2101',
+            'tweet' => [
+                'authorHandle' => 'alpha',
+                'authorName' => 'Alpha',
+                'text' => 'Alpha first',
+                'postedAt' => now()->subHours(2)->toISOString(),
+            ],
+        ]);
+        $this->insertResolvedTweet($repository, $beta['id'], [
+            'tweetId' => '2102',
+            'tweet' => [
+                'authorHandle' => 'beta',
+                'authorName' => 'Beta',
+                'text' => 'Beta only',
+                'postedAt' => now()->subHours(1)->toISOString(),
+            ],
+        ]);
+
+        $alphaAuthorId = Source::query()->findOrFail($alpha['id'])->user_id;
+        $this->assertNotNull($alphaAuthorId);
+        $repository->followUser($viewer->id, (int) $alphaAuthorId);
+
+        $response = $this->actingAs($viewer)->getJson('/api/feed?mode=following&limit=5');
+
+        $response->assertOk();
+        $response->assertJsonCount(1, 'items');
+        $response->assertJsonPath('items.0.tweetId', '2101');
+        $response->assertJsonPath('items.0.authorHandle', 'alpha');
+        $response->assertJsonPath('items.0.authorFollowedByViewer', true);
+    }
+
+    public function test_rankings_api_returns_creator_activity_order_and_follow_state(): void
+    {
+        $repository = $this->useShortVideoDatabase();
+        $viewer = User::factory()->create([
+            'username' => 'follow_tester',
+            'email' => 'follow_tester@example.com',
+        ]);
+        [$alpha, $beta] = $repository->syncSources([
+            ['handle' => 'alpha', 'enabled' => true],
+            ['handle' => 'beta', 'enabled' => true],
+        ]);
+
+        $this->insertResolvedTweet($repository, $alpha['id'], [
+            'tweetId' => '2201',
+            'tweet' => [
+                'authorHandle' => 'alpha',
+                'authorName' => 'Alpha',
+                'text' => 'Alpha one',
+                'postedAt' => now()->subDays(2)->toISOString(),
+            ],
+        ]);
+        $this->insertResolvedTweet($repository, $alpha['id'], [
+            'tweetId' => '2202',
+            'tweet' => [
+                'authorHandle' => 'alpha',
+                'authorName' => 'Alpha',
+                'text' => 'Alpha two',
+                'postedAt' => now()->subDay()->toISOString(),
+            ],
+        ]);
+        $this->insertResolvedTweet($repository, $beta['id'], [
+            'tweetId' => '2203',
+            'tweet' => [
+                'authorHandle' => 'beta',
+                'authorName' => 'Beta',
+                'text' => 'Beta one',
+                'postedAt' => now()->subHours(10)->toISOString(),
+            ],
+        ]);
+
+        $betaAuthorId = Source::query()->findOrFail($beta['id'])->user_id;
+        $this->assertNotNull($betaAuthorId);
+        $repository->followUser($viewer->id, (int) $betaAuthorId);
+
+        $response = $this->actingAs($viewer)->getJson('/api/rankings/creators?window=7d&limit=5');
+
+        $response->assertOk();
+        $response->assertJsonPath('window', '7d');
+        $response->assertJsonPath('items.0.rank', 1);
+        $response->assertJsonPath('items.0.creator.username', 'alpha');
+        $response->assertJsonPath('items.0.publishedCount7d', 2);
+        $response->assertJsonPath('items.0.followedByViewer', false);
+        $response->assertJsonPath('items.1.rank', 2);
+        $response->assertJsonPath('items.1.creator.username', 'beta');
+        $response->assertJsonPath('items.1.followedByViewer', true);
     }
 
     public function test_health_endpoint_reports_backoff_state(): void
@@ -63,5 +261,63 @@ final class FeedApiTest extends TestCase
         $response->assertJsonPath('ok', true);
         $response->assertJsonPath('backoffReason', 'rate_limited');
         $this->assertNotNull($response->json('backoffUntil'));
+    }
+
+    public function test_follow_endpoint_updates_author_follow_state_in_feed(): void
+    {
+        $repository = $this->useShortVideoDatabase();
+        $viewer = User::factory()->create([
+            'username' => 'follow_tester',
+            'email' => 'follow_tester@example.com',
+        ]);
+
+        [$source] = $repository->syncSources([
+            ['handle' => 'demo', 'enabled' => true],
+        ]);
+
+        $this->insertResolvedTweet($repository, $source['id'], [
+            'tweetId' => '2010',
+            'tweet' => [
+                'authorHandle' => 'demo',
+                'authorName' => 'Demo',
+                'text' => '可关注作者视频',
+            ],
+        ]);
+
+        $sourceModel = Source::query()->findOrFail($source['id']);
+        $authorUserId = $sourceModel->user_id;
+
+        $this->assertNotNull($authorUserId);
+
+        $this->actingAs($viewer)->getJson('/api/feed?source=demo&limit=5')
+            ->assertOk()
+            ->assertJsonPath('items.0.authorUserId', $authorUserId)
+            ->assertJsonPath('items.0.viewerUserId', $viewer->id)
+            ->assertJsonPath('items.0.canFollowAuthor', true)
+            ->assertJsonPath('items.0.authorFollowedByViewer', false);
+
+        $this->actingAs($viewer)->postJson("/api/users/{$authorUserId}/follow")
+            ->assertOk()
+            ->assertJsonPath('viewerUserId', $viewer->id)
+            ->assertJsonPath('authorUserId', $authorUserId)
+            ->assertJsonPath('following', true);
+
+        $this->assertDatabaseHas('user_follows', [
+            'follower_user_id' => $viewer->id,
+            'followed_user_id' => $authorUserId,
+        ]);
+
+        $this->actingAs($viewer)->getJson('/api/feed?source=demo&limit=5')
+            ->assertOk()
+            ->assertJsonPath('items.0.authorFollowedByViewer', true);
+
+        $this->actingAs($viewer)->deleteJson("/api/users/{$authorUserId}/follow")
+            ->assertOk()
+            ->assertJsonPath('following', false);
+
+        $this->assertDatabaseMissing('user_follows', [
+            'follower_user_id' => $viewer->id,
+            'followed_user_id' => $authorUserId,
+        ]);
     }
 }

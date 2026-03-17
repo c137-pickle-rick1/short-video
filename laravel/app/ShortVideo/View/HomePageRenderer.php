@@ -6,11 +6,17 @@ use Carbon\CarbonImmutable;
 
 final class HomePageRenderer
 {
+    public function __construct(
+        private readonly FeedUiComponents $components,
+        private readonly HomePageShellComponents $shellComponents
+    ) {}
+
     public function renderDocumentHead(string $pageTitle): string
     {
         return <<<HTML
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="{$this->escape(csrf_token())}" />
     <title>{$this->escape($pageTitle)}</title>
     <link rel="stylesheet" href="/vendor/fonts/fonts.css" />
     <link rel="stylesheet" href="/vendor/phosphor/regular/style.css" />
@@ -20,91 +26,46 @@ final class HomePageRenderer
 HTML;
     }
 
-    public function renderDesktopNavigation(): string
+    /**
+     * @param  array{id?:int,name?:string,username:string,avatarUrl?:string|null}|null  $viewer
+     */
+    public function renderPageHeader(string $loginUrl, ?array $viewer = null, ?string $logoutUrl = null): string
     {
-        return <<<'HTML'
-          <aside class="hidden lg:block lg:sticky lg:top-[100px] lg:w-56 lg:flex-none xl:top-[104px] 2xl:top-[108px]">
-            <nav aria-label="桌面主导航">
-              <div class="grid gap-2">
-                <button
-                  type="button"
-                  aria-current="page"
-                  class="inline-flex h-12 w-full items-center gap-4 rounded-full bg-gray-100 px-6 text-left text-lg font-semibold text-gray-900 transition-colors hover:bg-gray-200"
-                >
-                  <i class="ph-fill ph-house text-2xl leading-none" aria-hidden="true"></i>
-                  <span>首页</span>
-                </button>
-                <button
-                  type="button"
-                  class="inline-flex h-12 w-full items-center gap-4 rounded-full px-6 text-left text-lg font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-900"
-                >
-                  <i class="ph ph-bookmarks text-2xl leading-none" aria-hidden="true"></i>
-                  <span>订阅</span>
-                </button>
-                <button
-                  type="button"
-                  class="inline-flex h-12 w-full items-center gap-4 rounded-full px-6 text-left text-lg font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-900"
-                >
-                  <i class="ph ph-compass text-2xl leading-none" aria-hidden="true"></i>
-                  <span>探索</span>
-                </button>
-                <button
-                  type="button"
-                  class="inline-flex h-12 w-full items-center gap-4 rounded-full px-6 text-left text-lg font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-900"
-                >
-                  <i class="ph ph-chart-bar text-2xl leading-none" aria-hidden="true"></i>
-                  <span>榜单</span>
-                </button>
-              </div>
-            </nav>
-          </aside>
-HTML;
+        return $this->shellComponents->renderPageHeader($loginUrl, $viewer, $logoutUrl);
     }
 
-    public function renderMobileNavigation(): string
+    /**
+     * @param  array{id?:int,name?:string,username:string,avatarUrl?:string|null}|null  $viewer
+     */
+    public function renderDesktopNavigation(string $activePage = 'explore', ?array $viewer = null): string
     {
-        return <<<'HTML'
-          <nav
-            aria-label="移动主导航"
-            class="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white/95 px-3 py-2 backdrop-blur-2xl lg:hidden"
-          >
-            <div class="mx-auto grid max-w-md grid-cols-4">
-              <button
-                type="button"
-                aria-current="page"
-                class="flex flex-col items-center justify-center gap-1 py-2 text-center text-xs font-medium text-gray-900"
-              >
-                <i class="ph-fill ph-house text-[28px] leading-none" aria-hidden="true"></i>
-                首页
-              </button>
-              <button
-                type="button"
-                class="flex flex-col items-center justify-center gap-1 py-2 text-center text-xs font-medium text-gray-500"
-              >
-                <i class="ph ph-bookmarks text-[28px] leading-none" aria-hidden="true"></i>
-                订阅
-              </button>
-              <button
-                type="button"
-                class="flex flex-col items-center justify-center gap-1 py-2 text-center text-xs font-medium text-gray-500"
-              >
-                <i class="ph ph-compass text-[28px] leading-none" aria-hidden="true"></i>
-                探索
-              </button>
-              <button
-                type="button"
-                class="flex flex-col items-center justify-center gap-1 py-2 text-center text-xs font-medium text-gray-500"
-              >
-                <i class="ph ph-chart-bar text-[28px] leading-none" aria-hidden="true"></i>
-                榜单
-              </button>
-            </div>
-          </nav>
-HTML;
+        return $this->shellComponents->renderDesktopNavigation($this->navigationItems($activePage, $viewer));
     }
 
-    public function renderFeedToolbar(string $activeSourceHandle, string $feedSummaryText, string $feedStatusText): string
+    /**
+     * @param  array{id?:int,name?:string,username:string,avatarUrl?:string|null}|null  $viewer
+     */
+    public function renderMobileNavigation(string $activePage = 'explore', ?array $viewer = null): string
     {
+        return $this->shellComponents->renderMobileNavigation($this->navigationItems($activePage, $viewer));
+    }
+
+    public function renderFeedToolbar(
+        string $mode,
+        string $activeSourceHandle,
+        int $renderedCount,
+        bool $done,
+        bool $showSourceFilter = true
+    ): string
+    {
+        $feedSummaryText = $this->formatFeedSummary($mode, $activeSourceHandle, $renderedCount, $done);
+        $feedStatusText = $renderedCount === 0
+            ? match ($mode) {
+                'featured' => '等待精选内容进入列表',
+                'following' => '等待订阅更新进入列表',
+                default => '等待探索内容进入列表',
+            }
+            : ($done ? '当前结果已全部加载' : '向下滚动继续扩展列表');
         $selectedAll = $activeSourceHandle === '' ? 'selected' : '';
         $activeSourceOption = $activeSourceHandle !== ''
             ? <<<HTML
@@ -113,13 +74,8 @@ HTML;
                   </option>
               HTML
             : '';
-
-        return <<<HTML
-            <div class="mb-4 flex flex-col gap-3 rounded-[28px] border border-gray-200 bg-white/90 px-4 py-4 shadow-sm backdrop-blur-xl sm:px-5 lg:mb-5 lg:flex-row lg:items-center lg:justify-between lg:px-6">
-              <div class="min-w-0">
-                <p id="feed-summary" class="text-sm font-medium text-gray-700">{$this->escape($feedSummaryText)}</p>
-                <p id="feed-status" class="mt-1 text-xs text-gray-500" aria-live="polite">{$this->escape($feedStatusText)}</p>
-              </div>
+        $sourceFilterMarkup = $showSourceFilter
+            ? <<<HTML
               <label class="inline-flex items-center gap-3 text-sm text-gray-600">
                 <span class="shrink-0 font-medium text-gray-700">来源</span>
                 <select
@@ -130,6 +86,16 @@ HTML;
                   {$activeSourceOption}
                 </select>
               </label>
+HTML
+            : '';
+
+        return <<<HTML
+            <div class="mb-4 flex flex-col gap-3 rounded-[28px] border border-gray-200 bg-white/90 px-4 py-4 shadow-sm backdrop-blur-xl sm:px-5 lg:mb-5 lg:flex-row lg:items-center lg:justify-between lg:px-6">
+              <div class="min-w-0">
+                <p id="feed-summary" class="text-sm font-medium text-gray-700">{$this->escape($feedSummaryText)}</p>
+                <p id="feed-status" class="mt-1 text-xs text-gray-500" aria-live="polite">{$this->escape($feedStatusText)}</p>
+              </div>
+              {$sourceFilterMarkup}
             </div>
 HTML;
     }
@@ -142,8 +108,12 @@ HTML;
         $feed = is_array($viewModel['feed'] ?? null) ? $viewModel['feed'] : [];
         $items = is_array($feed['items'] ?? null) ? $feed['items'] : [];
         $isEmpty = ! empty($feed['isEmpty']);
+        $emptyState = is_array($viewModel['emptyState'] ?? null) ? $viewModel['emptyState'] : [];
         $itemsMarkup = $isEmpty
-            ? $this->renderFeedEmptyState()
+            ? $this->renderFeedEmptyState(
+                (string) ($emptyState['title'] ?? '还没有可展示的视频'),
+                (string) ($emptyState['body'] ?? '先在 <code>config/sources.json</code> 启用来源并运行抓取。首页布局已经准备好，一旦有数据就会按瀑布流方式展示出来。')
+            )
             : implode('', array_map(fn (array $item) => $this->renderFeedItem($item), $items));
         $emptyAttr = $isEmpty ? 'true' : 'false';
 
@@ -157,28 +127,35 @@ HTML;
               <div class="feed-grid-col hidden 2xl:block"></div>
             </section>
             <div id="feed-sentinel" class="h-px" aria-hidden="true"></div>
+            {$this->renderFeedLoadingIndicator()}
 HTML;
     }
 
-    public function renderFeedEmptyState(): string
+    public function renderFeedLoadingIndicator(): string
     {
         return <<<'HTML'
-    <article
-      class="feed-grid-item mb-3 inline-block w-full overflow-hidden rounded-3xl border border-gray-200 bg-white/95 px-6 py-8 text-center shadow-xl backdrop-blur-2xl sm:mb-4 lg:mb-5 xl:mb-6 2xl:mb-7"
-      data-empty-state="true"
-    >
-      <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 text-xl text-gray-700">
-        ⌕
-      </div>
-      <h2 class="mt-4 text-2xl font-semibold tracking-tight text-gray-900">
-        还没有可展示的视频
-      </h2>
-      <p class="mt-3 text-sm leading-6 text-gray-500 sm:text-base">
-        先在 <code>config/sources.json</code> 启用来源并运行抓取。首页布局已经准备好，
-        一旦有数据就会按瀑布流方式展示出来。
-      </p>
-    </article>
+            <div
+              id="feed-loading-indicator"
+              class="hidden py-6 text-center"
+              role="status"
+              aria-live="polite"
+              aria-hidden="true"
+              hidden
+            >
+              <div class="inline-flex items-center gap-3 rounded-full border border-gray-200 bg-white/90 px-4 py-2 text-sm font-medium text-gray-500 shadow-sm backdrop-blur">
+                <i class="ph ph-spinner-gap animate-spin text-base text-rose-500" aria-hidden="true"></i>
+                <span>正在加载更多</span>
+              </div>
+            </div>
 HTML;
+    }
+
+    public function renderFeedEmptyState(
+        string $title = '还没有可展示的视频',
+        string $body = '先在 <code>config/sources.json</code> 启用来源并运行抓取。首页布局已经准备好，一旦有数据就会按瀑布流方式展示出来。'
+    ): string
+    {
+        return $this->components->renderEmptyStateCard(title: $title, body: $body);
     }
 
     /**
@@ -191,42 +168,21 @@ HTML;
         $authorName = isset($tweet['authorName']) && $tweet['authorName'] !== null
             ? (string) $tweet['authorName']
             : '@'.($tweet['authorHandle'] ?? 'unknown');
+        $authorHandle = (string) ($tweet['authorHandle'] ?? 'unknown');
         $safeAuthor = $this->escape($authorName);
-        $safeHandle = $this->escape((string) ($tweet['authorHandle'] ?? 'unknown'));
-        $safePoster = $this->escape((string) ($tweet['posterUrl'] ?? ''));
-        $safeHlsUrl = $this->escape((string) ($tweet['hlsUrl'] ?? ''));
-        $safeVideoUrl = $this->escape((string) ($tweet['videoUrl'] ?? ''));
         $safeStatus = $this->escape((string) ($tweet['status'] ?? 'pending'));
         $authorInitial = $this->getAuthorInitial($authorName);
         $frameClass = $this->getMediaFrameClass($tweet);
         $durationText = $this->formatVideoDurationText((string) ($tweet['durationText'] ?? ''));
-        $durationVisibility = $durationText === '' ? 'hidden ' : '';
-        $safeDurationText = $this->escape($durationText);
-        $videoPreload = ! empty($tweet['hlsUrl']) ? 'metadata' : 'none';
-        $mediaMarkup = ($tweet['status'] ?? null) === 'resolved' && (! empty($tweet['hlsUrl']) || ! empty($tweet['videoUrl']))
-            ? <<<HTML
-                  <video
-                    class="js-feed-player h-full w-full object-cover"
-                    poster="{$safePoster}"
-                    data-poster="{$safePoster}"
-                    data-hls-url="{$safeHlsUrl}"
-                    data-fallback-url="{$safeVideoUrl}"
-                    muted
-                    loop
-                    playsinline
-                    disablepictureinpicture
-                    preload="{$videoPreload}"
-                    referrerpolicy="no-referrer"
-                  ></video>
-              HTML
-            : <<<HTML
-                  <img
-                    class="h-full w-full object-cover"
-                    src="{$safePoster}"
-                    alt="Poster for @{$safeHandle}"
-                    loading="lazy"
-                  />
-              HTML;
+        $mediaMarkup = $this->components->renderFeedMedia($tweet, $frameClass, $durationText, $authorHandle);
+        $authorMarkup = $this->components->renderAuthorIdentity(
+            imageUrl: $tweet['authorAvatarUrl'] ?? null,
+            authorName: $authorName,
+            authorHandle: $authorHandle,
+            authorInitial: $authorInitial,
+            avatarSizeClass: 'h-7 w-7',
+            nameClass: 'truncate text-sm font-semibold text-gray-900'
+        );
 
         return <<<HTML
     <article
@@ -239,30 +195,13 @@ HTML;
       aria-haspopup="dialog"
       aria-label="打开 {$safeAuthor} 的视频详情"
     >
-      <div class="relative {$frameClass} overflow-hidden bg-gray-100">
-        {$mediaMarkup}
-        <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-black/5 to-black/10"></div>
-        <span
-          class="pointer-events-none absolute right-3 top-3 z-10 {$durationVisibility}rounded-full bg-black/15 px-2.5 py-1.5 text-sm font-semibold leading-none text-white backdrop-blur-sm"
-          data-video-duration
-        >{$safeDurationText}</span>
-      </div>
+      {$mediaMarkup}
       <div class="grid gap-3 px-4 pb-4 pt-3">
         <p class="line-clamp-2 overflow-hidden text-base font-semibold leading-6 text-gray-900">
           {$safeText}
         </p>
         <div class="flex items-center justify-between gap-3">
-          <div class="flex min-w-0 items-center gap-3">
-            {$this->renderAvatarMarkup(
-                imageUrl: $tweet['authorAvatarUrl'] ?? null,
-                label: $authorName,
-                initial: $authorInitial,
-                sizeClass: 'h-7 w-7'
-            )}
-            <div class="min-w-0">
-              <p class="truncate text-sm font-semibold text-gray-900">{$safeAuthor}</p>
-            </div>
-          </div>
+          {$authorMarkup}
           <div class="shrink-0 text-xs text-gray-500">
             <span>{$this->escape($this->formatFeedDate($tweet['postedAt'] ?? null))}</span>
           </div>
@@ -305,16 +244,23 @@ HTML;
         );
     }
 
-    public function formatFeedSummary(string $sourceHandle, int $renderedCount, bool $done): string
+    public function formatFeedSummary(string $mode, string $sourceHandle, int $renderedCount, bool $done): string
     {
-        $sourceLabel = $sourceHandle !== '' ? '@'.$sourceHandle : '全部来源';
+        $sourceLabel = match ($mode) {
+            'featured' => '精选',
+            'following' => '订阅更新',
+            default => $sourceHandle !== '' ? '@'.$sourceHandle : '全部来源',
+        };
 
         if ($renderedCount === 0 && $done) {
             return "{$sourceLabel} 暂无内容";
         }
 
         if ($renderedCount === 0) {
-            return "{$sourceLabel} 正在加载探索内容…";
+            return match ($mode) {
+                'featured', 'following' => "{$sourceLabel} 正在加载…",
+                default => "{$sourceLabel} 正在加载探索内容…",
+            };
         }
 
         return $sourceLabel.' · 已展示 '.$renderedCount.' 条 · '.($done ? '已加载完毕' : '向下滚动继续加载');
@@ -413,40 +359,66 @@ HTML;
         return implode(':', $parts);
     }
 
-    private function renderAvatarMarkup(
-        ?string $imageUrl,
-        string $label,
-        string $initial,
-        string $sizeClass,
-        string $fallbackClass = 'bg-gray-100 text-gray-700',
-        string $imageClass = ''
-    ): string {
-        if ($imageUrl) {
-            $imageClasses = trim("{$sizeClass} rounded-full object-cover ring-1 ring-gray-200 {$imageClass}");
-
-            return <<<HTML
-      <img
-        class="{$imageClasses}"
-        src="{$this->escape($imageUrl)}"
-        alt="{$this->escape($label)} 的头像"
-        loading="lazy"
-        referrerpolicy="no-referrer"
-      />
-HTML;
-        }
-
-        return <<<HTML
-    <span
-      class="flex {$sizeClass} items-center justify-center rounded-full {$fallbackClass} text-xs font-semibold"
-      aria-hidden="true"
-    >
-      {$this->escape($initial)}
-    </span>
-HTML;
-    }
-
     private function escape(string $value): string
     {
         return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+
+    /**
+     * @param  array{id?:int,name?:string,username:string,avatarUrl?:string|null}|null  $viewer
+     * @return array<int, array{icon:string,label:string,active:bool,href:string,avatarUrl?:string|null,avatarInitial?:string|null}>
+     */
+    private function navigationItems(string $activePage, ?array $viewer = null): array
+    {
+        $items = [
+            [
+                'icon' => $activePage === 'featured' ? 'ph-fill ph-sparkle' : 'ph ph-sparkle',
+                'label' => '精选',
+                'active' => $activePage === 'featured',
+                'href' => route('home'),
+            ],
+            [
+                'icon' => $activePage === 'explore' ? 'ph-fill ph-compass' : 'ph ph-compass',
+                'label' => '探索',
+                'active' => $activePage === 'explore',
+                'href' => route('explore'),
+            ],
+            [
+                'icon' => $activePage === 'rankings' ? 'ph-fill ph-chart-bar' : 'ph ph-chart-bar',
+                'label' => '榜单',
+                'active' => $activePage === 'rankings',
+                'href' => route('rankings'),
+            ],
+            [
+                'icon' => $activePage === 'subscriptions' ? 'ph-fill ph-bookmarks' : 'ph ph-bookmarks',
+                'label' => '订阅',
+                'active' => $activePage === 'subscriptions',
+                'href' => route('subscriptions'),
+            ],
+        ];
+
+        if ($viewer !== null && trim((string) ($viewer['username'] ?? '')) !== '') {
+            $viewerName = trim((string) ($viewer['name'] ?? ''));
+            $viewerUsername = trim((string) ($viewer['username'] ?? ''));
+            $items[] = [
+                'icon' => 'ph ph-user-circle',
+                'label' => '我的',
+                'active' => $activePage === 'profile',
+                'href' => route('profile'),
+                'avatarUrl' => isset($viewer['avatarUrl']) ? trim((string) $viewer['avatarUrl']) ?: null : null,
+                'avatarInitial' => $this->getAuthorInitial($viewerName !== '' ? $viewerName : $viewerUsername),
+            ];
+
+            return $items;
+        }
+
+        $items[] = [
+            'icon' => 'ph ph-sign-in',
+            'label' => '登录',
+            'active' => false,
+            'href' => route('login'),
+        ];
+
+        return $items;
     }
 }

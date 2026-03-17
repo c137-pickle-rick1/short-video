@@ -2,15 +2,18 @@ import { getSourceLabel } from "../sourceLabel.js";
 
 export { getSourceLabel };
 
-export function formatFeedSummary({ sourceHandle = "", renderedCount = 0, done = false }) {
-  const sourceLabel = getSourceLabel(sourceHandle);
+export function formatFeedSummary({ mode = "explore", sourceHandle = "", renderedCount = 0, done = false }) {
+  const sourceLabel =
+    mode === "featured" ? "精选" : mode === "following" ? "订阅更新" : getSourceLabel(sourceHandle);
 
   if (renderedCount === 0 && done) {
     return `${sourceLabel} 暂无内容`;
   }
 
   if (renderedCount === 0) {
-    return `${sourceLabel} 正在加载探索内容…`;
+    return mode === "featured" || mode === "following"
+      ? `${sourceLabel} 正在加载…`
+      : `${sourceLabel} 正在加载探索内容…`;
   }
 
   const tail = done ? "已加载完毕" : "向下滚动继续加载";

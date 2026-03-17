@@ -16,39 +16,6 @@ const scheduleTask =
   typeof requestAnimationFrame === "function" ? requestAnimationFrame : (callback) => setTimeout(callback, 0);
 let activeHoverPreviewController = null;
 
-function formatDurationLabel(seconds) {
-  if (!Number.isFinite(seconds) || seconds <= 0) {
-    return "";
-  }
-
-  const totalSeconds = Math.max(0, Math.round(seconds));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const remainingSeconds = totalSeconds % 60;
-
-  if (hours > 0) {
-    return `${hours}:${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
-  }
-
-  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
-}
-
-function syncDurationBadge(container, durationSeconds) {
-  const badge = container.querySelector("[data-video-duration]");
-  if (!(badge instanceof HTMLElement)) {
-    return;
-  }
-
-  const label = formatDurationLabel(durationSeconds);
-  if (!label) {
-    badge.classList.add("hidden");
-    return;
-  }
-
-  badge.textContent = label;
-  badge.classList.remove("hidden");
-}
-
 function getMediaDatasetValue(video, key) {
   const value = video?.dataset?.[key];
   return typeof value === "string" && value.trim() !== "" ? value.trim() : "";
@@ -318,12 +285,6 @@ function createNativePreviewController(container, video) {
   container.addEventListener("focusin", handleFocusIn);
   container.addEventListener("focusout", handleFocusOut);
   video.addEventListener("error", handlePlaybackError);
-  const handleLoadedMetadata = () => {
-    syncDurationBadge(container, video.duration);
-  };
-  video.addEventListener("loadedmetadata", handleLoadedMetadata);
-  video.addEventListener("durationchange", handleLoadedMetadata);
-  syncDurationBadge(container, video.duration);
   setControlsVisible(false);
 
   const controllerApi = {
@@ -362,8 +323,6 @@ function createNativePreviewController(container, video) {
       container.removeEventListener("focusin", handleFocusIn);
       container.removeEventListener("focusout", handleFocusOut);
       video.removeEventListener("error", handlePlaybackError);
-      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
-      video.removeEventListener("durationchange", handleLoadedMetadata);
       stopPreview({ releaseActive: false });
       playbackSession.destroy();
     }
@@ -380,12 +339,63 @@ export function installHoverVideoPreview(container, video) {
   return createNativePreviewController(container, video);
 }
 
-export function installDetailVideoPlayer(container, video) {
+function createQualifiedViewTracker(video, onQualifiedView) {
+  let qualified = false;
+  let timerId = 0;
+
+  const clearTimer = () => {
+    if (timerId) {
+      window.clearTimeout(timerId);
+      timerId = 0;
+    }
+  };
+
+  const schedule = () => {
+    if (qualified || typeof onQualifiedView !== "function") {
+      return;
+    }
+
+    clearTimer();
+    timerId = window.setTimeout(() => {
+      qualified = true;
+      timerId = 0;
+      onQualifiedView();
+    }, 3000);
+  };
+
+  const cancelIfPending = () => {
+    if (!qualified) {
+      clearTimer();
+    }
+  };
+
+  video.addEventListener("play", schedule);
+  video.addEventListener("playing", schedule);
+  video.addEventListener("pause", cancelIfPending);
+  video.addEventListener("waiting", cancelIfPending);
+  video.addEventListener("seeking", cancelIfPending);
+  video.addEventListener("ended", cancelIfPending);
+
+  return {
+    destroy() {
+      clearTimer();
+      video.removeEventListener("play", schedule);
+      video.removeEventListener("playing", schedule);
+      video.removeEventListener("pause", cancelIfPending);
+      video.removeEventListener("waiting", cancelIfPending);
+      video.removeEventListener("seeking", cancelIfPending);
+      video.removeEventListener("ended", cancelIfPending);
+    }
+  };
+}
+
+export function installDetailVideoPlayer(container, video, { onQualifiedView } = {}) {
   if (!(container instanceof HTMLElement) || !(video instanceof HTMLVideoElement)) {
     throw new TypeError("installDetailVideoPlayer expects HTMLElement and HTMLVideoElement instances");
   }
 
   const playbackSession = createPlaybackSession(video);
+  const qualifiedViewTracker = createQualifiedViewTracker(video, onQualifiedView);
   const handlePlaybackError = () => {
     if (!playbackSession.hasDirectHls || playbackSession.mode === "fallback") {
       return;
@@ -445,6 +455,7 @@ export function installDetailVideoPlayer(container, video) {
       destroy() {
         player.off?.("ready", handleReady);
         video.removeEventListener("error", handlePlaybackError);
+        qualifiedViewTracker.destroy();
         playbackSession.destroy();
         player.pause();
         player.destroy();
@@ -460,6 +471,7 @@ export function installDetailVideoPlayer(container, video) {
   return {
     destroy() {
       video.removeEventListener("error", handlePlaybackError);
+      qualifiedViewTracker.destroy();
       playbackSession.destroy();
       video.pause();
       video.controls = false;

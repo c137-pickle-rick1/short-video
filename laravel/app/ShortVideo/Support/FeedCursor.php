@@ -5,13 +5,14 @@ namespace App\ShortVideo\Support;
 final class FeedCursor
 {
     /**
-     * @return array{cursorSort: ?string, cursorTweetId: ?string}
+     * @return array{cursorSort: ?string, cursorSecondarySort: ?string, cursorTweetId: ?string}
      */
     public static function decode(?string $cursor): array
     {
         if (! $cursor) {
             return [
                 'cursorSort' => null,
+                'cursorSecondarySort' => null,
                 'cursorTweetId' => null,
             ];
         }
@@ -20,6 +21,7 @@ final class FeedCursor
         if ($decoded === false) {
             return [
                 'cursorSort' => null,
+                'cursorSecondarySort' => null,
                 'cursorTweetId' => null,
             ];
         }
@@ -28,13 +30,17 @@ final class FeedCursor
         if (! is_array($payload)) {
             return [
                 'cursorSort' => null,
+                'cursorSecondarySort' => null,
                 'cursorTweetId' => null,
             ];
         }
 
         return [
             'cursorSort' => isset($payload['sortValue']) ? (string) $payload['sortValue'] : null,
-            'cursorTweetId' => isset($payload['tweetId']) ? (string) $payload['tweetId'] : null,
+            'cursorSecondarySort' => isset($payload['secondarySortValue']) ? (string) $payload['secondarySortValue'] : null,
+            'cursorTweetId' => isset($payload['cursorTweetId'])
+                ? (string) $payload['cursorTweetId']
+                : (isset($payload['tweetId']) ? (string) $payload['tweetId'] : null),
         ];
     }
 
@@ -50,6 +56,8 @@ final class FeedCursor
         $last = $items[array_key_last($items)];
         $json = json_encode([
             'sortValue' => $last['sortValue'] ?? null,
+            'secondarySortValue' => $last['secondarySortValue'] ?? null,
+            'cursorTweetId' => $last['cursorTweetId'] ?? ($last['tweetId'] ?? null),
             'tweetId' => $last['tweetId'] ?? null,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
