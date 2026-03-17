@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const nodeModulesDir = path.join(rootDir, "node_modules");
-const vendorDir = path.join(rootDir, "public", "vendor");
+const vendorDir = path.join(rootDir, "laravel", "public", "vendor");
 
 function ensureDir(targetPath) {
   mkdirSync(targetPath, { recursive: true });
@@ -106,6 +106,14 @@ function syncPlyr() {
   for (const fileName of ["plyr.css", "plyr.min.js", "plyr.svg"]) {
     copyAsset(path.join(sourceDir, fileName), path.join(targetDir, fileName));
   }
+  copyAsset(path.join(rootDir, "assets", "plyr", "blank.mp4"), path.join(targetDir, "blank.mp4"));
+}
+
+function syncHls() {
+  const targetDir = path.join(vendorDir, "hls");
+
+  ensureDir(targetDir);
+  copyAsset(path.join(nodeModulesDir, "hls.js", "dist", "hls.min.js"), path.join(targetDir, "hls.min.js"));
 }
 
 function syncColcade() {
@@ -121,5 +129,6 @@ syncFonts();
 syncPhosphorIcons();
 syncPlyr();
 syncColcade();
+syncHls();
 
 console.log(`Synced vendor assets to ${vendorDir}`);

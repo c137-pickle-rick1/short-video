@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { renderFeedDetail, renderFeedItem } from "../public/render.js";
+import { renderFeedDetail, renderFeedItem } from "../laravel/public/render.js";
 
 test("renderFeedItem renders inline video cards with dialog trigger semantics", () => {
   const markup = renderFeedItem({
@@ -15,6 +15,7 @@ test("renderFeedItem renders inline video cards with dialog trigger semantics", 
     status: "resolved",
     sourceHandle: "demo",
     tweetUrl: "https://x.com/demo/status/999",
+    hlsUrl: "https://example.com/video.m3u8",
     videoUrl: "https://example.com/video.mp4"
   });
 
@@ -22,6 +23,10 @@ test("renderFeedItem renders inline video cards with dialog trigger semantics", 
   assert.match(markup, /avatar\.jpg/);
   assert.match(markup, /data-feed-detail-trigger="true"/);
   assert.match(markup, /aria-haspopup="dialog"/);
+  assert.match(markup, /poster="https:\/\/example\.com\/poster\.jpg"/);
+  assert.match(markup, /data-hls-url="https:\/\/example\.com\/video\.m3u8"/);
+  assert.match(markup, /data-fallback-url="https:\/\/example\.com\/video\.mp4"/);
+  assert.match(markup, /preload="metadata"/);
   assert.doesNotMatch(markup, /\bcontrols\b/);
 });
 

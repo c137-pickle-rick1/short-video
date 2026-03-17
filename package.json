@@ -4,26 +4,34 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "auth": "node server/auth.js",
+    "auth": "npm run php:auth",
     "build:vendor": "node scripts/syncVendorAssets.mjs",
-    "build:styles": "tailwindcss -i ./src/styles.css -o ./public/styles.css --minify",
-    "db:migrate": "node server/migrate.js",
-    "dev:styles": "tailwindcss -i ./src/styles.css -o ./public/styles.css --watch",
+    "build:styles": "tailwindcss -i ./laravel/resources/shortvideo/styles.css -o ./laravel/public/styles.css --minify",
+    "db:migrate": "cd laravel && php artisan migrate --force",
+    "dev:styles": "tailwindcss -i ./laravel/resources/shortvideo/styles.css -o ./laravel/public/styles.css --watch",
     "predev": "npm run build:vendor && npm run build:styles",
-    "pretest": "npm run build:vendor",
-    "dev": "node server/index.js",
-    "crawl:once": "node server/crawlOnce.js",
-    "resolve:pending": "node server/resolvePending.js",
-    "backfill:avatars": "node server/backfillAvatars.js",
+    "pretest": "npm run build:vendor && npm run build:styles",
+    "dev": "npm run php:dev",
+    "crawl:once": "npm run php:crawl:once",
+    "resolve:pending": "npm run php:resolve:pending",
+    "backfill:avatars": "npm run php:backfill:avatars",
     "playwright:install": "playwright install chromium",
-    "test": "node --test test/*.test.js"
+    "test:node": "node --test sidecar/tests/*.test.js test/browserSmoke.test.js test/render.test.js test/videoPreview.test.js",
+    "test": "npm run php:test && npm run test:node",
+    "php:install": "composer install --working-dir=laravel",
+    "php:dev": "cd laravel && php artisan octane:start --server=swoole --host=127.0.0.1 --port=${PORT:-3000}",
+    "php:test": "cd laravel && php artisan test",
+    "php:auth": "cd laravel && php artisan shortvideo:auth",
+    "php:sync:sources": "cd laravel && php artisan shortvideo:sync-sources",
+    "php:crawl:once": "cd laravel && php artisan shortvideo:crawl-once",
+    "php:resolve:pending": "cd laravel && php artisan shortvideo:resolve-pending",
+    "php:backfill:avatars": "cd laravel && php artisan shortvideo:backfill-avatars"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
     "better-sqlite3": "^11.8.1",
-    "express": "^4.21.2",
     "playwright": "^1.58.2"
   },
   "devDependencies": {
@@ -31,8 +39,8 @@
     "@fontsource/plus-jakarta-sans": "^5.2.8",
     "@phosphor-icons/web": "^2.1.1",
     "colcade": "^0.2.0",
+    "hls.js": "^1.6.14",
     "plyr": "^3.8.4",
-    "supertest": "^7.1.1",
     "tailwindcss": "^3.4.19"
   }
 }
