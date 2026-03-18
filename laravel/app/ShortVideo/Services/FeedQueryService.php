@@ -9,13 +9,15 @@ use App\ShortVideo\Repositories\SocialGraphRepository;
 use App\ShortVideo\Support\FeedConfig;
 use App\ShortVideo\Support\FeedCursor;
 use App\ShortVideo\Support\ShortVideoData;
+use Illuminate\Contracts\Routing\UrlGenerator;
 
 final class FeedQueryService
 {
     public function __construct(
         private readonly FeedRepository $feeds,
         private readonly SocialGraphRepository $socialGraph,
-        private readonly CurrentViewerResolver $currentViewerResolver
+        private readonly CurrentViewerResolver $currentViewerResolver,
+        private readonly UrlGenerator $url
     ) {}
 
     /**
@@ -346,6 +348,9 @@ final class FeedQueryService
         $item['videoUrl'] = ! empty($item['tweetId'])
             ? '/api/media/'.$item['tweetId']
             : (! empty($item['videoUrl']) ? (string) $item['videoUrl'] : null);
+        $item['detailUrl'] = isset($item['videoId']) && is_numeric((string) ($item['videoId'] ?? null))
+            ? $this->url->route('videos.show', ['video' => (int) $item['videoId']], false)
+            : null;
         $item['collectedAt'] = isset($item['sortValue']) && is_string($item['sortValue']) && trim($item['sortValue']) !== ''
             ? trim($item['sortValue'])
             : null;
@@ -353,6 +358,8 @@ final class FeedQueryService
         $item['viewerUserId'] = $viewerUserId;
         $item['canFollowAuthor'] = $viewerUserId !== null && $authorUserId !== null && $viewerUserId !== $authorUserId;
         $item['authorFollowedByViewer'] = $item['canFollowAuthor'] && in_array($authorUserId, $followedAuthorIds, true);
+        $item['viewedByViewer'] = ($item['viewedByViewer'] ?? false) === true;
+        $item['isNewForViewer'] = $viewerUserId !== null && ! $item['viewedByViewer'];
         $item['engagement'] = [
             'likeCount' => (int) ($item['engagement']['likeCount'] ?? 0),
             'bookmarkCount' => (int) ($item['engagement']['bookmarkCount'] ?? 0),

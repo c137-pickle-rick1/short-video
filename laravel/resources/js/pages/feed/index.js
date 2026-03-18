@@ -15,6 +15,10 @@ const state = {
   loadToken: 0
 };
 const DETAIL_HISTORY_FLAG = "__shortvideoMobileDetail";
+const VIEW_RECORDED_EVENT = "shortvideo:video-view-recorded";
+const VIEWER_SESSION_STORAGE_KEY = "shortvideo_viewer_session_id";
+const READ_VISIBILITY_THRESHOLD = 0.6;
+const READ_DWELL_MS = 600;
 
 const grid = document.querySelector("#feed-grid");
 const sourceFilter = document.querySelector("#source-filter");
@@ -25,11 +29,17 @@ const feedLoadingIndicator = document.querySelector("#feed-loading-indicator");
 const emptyStateTemplate = document.querySelector("#empty-state-template");
 const detailModal = document.querySelector("#feed-detail-modal");
 const detailModalPanel = document.querySelector("#feed-detail-modal-panel");
+const subscriptionsFollowList = document.querySelector("[data-subscriptions-follow-list='true']");
 
 const feedItemsById = new Map();
 const orderedTweetIds = [];
 let mobileDetailHistoryActive = false;
 let closingDetailFromPopstate = false;
+const readTrackingState = {
+  observedTweetIds: new Set(),
+  pendingVideoIds: new Set(),
+  visibilityTimers: new Map()
+};
 
 const gridController = createFeedGridController({
   grid,
@@ -73,6 +83,195 @@ const detailModalController = createDetailModalController({
     window.history.back();
   }
 });
+
+function getViewerSessionId() {
+  const storageKey = VIEWER_SESSION_STORAGE_KEY;
+
+  try {
+    const existingValue = window.localStorage.getItem(storageKey);
+    if (existingValue && existingValue.length >= 8) {
+      return existingValue;
+    }
+  } catch (error) {
+    console.warn("Unable to access localStorage", error);
+  }
+
+  const nextValue =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+
+  try {
+    window.localStorage.setItem(storageKey, nextValue);
+  } catch (error) {
+    console.warn("Unable to persist viewer session id", error);
+  }
+
+  return nextValue;
+}
+
+function clearFeedReadVisibilityTimer(tweetId) {
+  const timerId = readTrackingState.visibilityTimers.get(tweetId);
+  if (typeof timerId !== "number") {
+    return;
+  }
+
+  window.clearTimeout(timerId);
+  readTrackingState.visibilityTimers.delete(tweetId);
+}
+
+function markFeedVideoAsRead(videoId) {
+  const normalizedVideoId = String(videoId || "");
+  if (!normalizedVideoId) {
+    return;
+  }
+
+  readTrackingState.pendingVideoIds.delete(normalizedVideoId);
+
+  for (const [tweetId, tweet] of feedItemsById.entries()) {
+    if (String(tweet?.videoId || "") !== normalizedVideoId) {
+      continue;
+    }
+
+    tweet.viewedByViewer = true;
+    tweet.isNewForViewer = false;
+    clearFeedReadVisibilityTimer(tweetId);
+  }
+
+  for (const node of grid?.querySelectorAll(".feed-grid-item[data-tweet-id]") || []) {
+    if (!(node instanceof HTMLElement)) {
+      continue;
+    }
+
+    const tweet = feedItemsById.get(String(node.dataset.tweetId || ""));
+    if (!tweet || String(tweet.videoId || "") !== normalizedVideoId) {
+      continue;
+    }
+
+    node.dataset.videoId = normalizedVideoId;
+    node.dataset.viewedByViewer = "true";
+    node.dataset.isNewForViewer = "false";
+    feedReadObserver.unobserve(node);
+  }
+}
+
+async function recordFeedCardView(card) {
+  if (!(card instanceof HTMLElement)) {
+    return;
+  }
+
+  const tweetId = String(card.dataset.tweetId || "");
+  const tweet = feedItemsById.get(tweetId);
+  const videoId = String(tweet?.videoId || "");
+  if (!tweetId || !tweet || !videoId || tweet.isNewForViewer !== true || readTrackingState.pendingVideoIds.has(videoId)) {
+    return;
+  }
+
+  readTrackingState.pendingVideoIds.add(videoId);
+
+  try {
+    await requestJson(`/api/videos/${videoId}/views`, {
+      method: "POST",
+      keepalive: true,
+      body: {
+        sessionId: getViewerSessionId()
+      }
+    });
+
+    markFeedVideoAsRead(videoId);
+    window.dispatchEvent(
+      new CustomEvent(VIEW_RECORDED_EVENT, {
+        detail: {
+          source: "feed-grid",
+          videoId,
+          tweetId
+        }
+      })
+    );
+  } catch (error) {
+    readTrackingState.pendingVideoIds.delete(videoId);
+    console.error(error);
+  }
+}
+
+const feedReadObserver = new IntersectionObserver(
+  (entries) => {
+    for (const entry of entries) {
+      if (!(entry.target instanceof HTMLElement)) {
+        continue;
+      }
+
+      const card = entry.target;
+      const tweetId = String(card.dataset.tweetId || "");
+      const tweet = feedItemsById.get(tweetId);
+      if (!tweetId || !tweet || tweet.isNewForViewer !== true || !tweet.videoId) {
+        clearFeedReadVisibilityTimer(tweetId);
+        feedReadObserver.unobserve(card);
+        continue;
+      }
+
+      if (!entry.isIntersecting || entry.intersectionRatio < READ_VISIBILITY_THRESHOLD) {
+        clearFeedReadVisibilityTimer(tweetId);
+        continue;
+      }
+
+      if (readTrackingState.visibilityTimers.has(tweetId)) {
+        continue;
+      }
+
+      const timerId = window.setTimeout(() => {
+        readTrackingState.visibilityTimers.delete(tweetId);
+        void recordFeedCardView(card);
+      }, READ_DWELL_MS);
+
+      readTrackingState.visibilityTimers.set(tweetId, timerId);
+    }
+  },
+  {
+    threshold: [0, READ_VISIBILITY_THRESHOLD, 1]
+  }
+);
+
+function observeUnreadFeedCards() {
+  if (!(grid instanceof HTMLElement) || subscriptionsFollowList instanceof HTMLElement) {
+    return;
+  }
+
+  for (const node of grid.querySelectorAll(".feed-grid-item[data-tweet-id]")) {
+    if (!(node instanceof HTMLElement)) {
+      continue;
+    }
+
+    const tweetId = String(node.dataset.tweetId || "");
+    const tweet = feedItemsById.get(tweetId);
+    if (
+      !tweetId ||
+      readTrackingState.observedTweetIds.has(tweetId) ||
+      !tweet ||
+      !tweet.videoId ||
+      tweet.isNewForViewer !== true
+    ) {
+      continue;
+    }
+
+    node.dataset.videoId = String(tweet.videoId);
+    node.dataset.viewedByViewer = tweet.viewedByViewer === true ? "true" : "false";
+    node.dataset.isNewForViewer = tweet.isNewForViewer === true ? "true" : "false";
+    readTrackingState.observedTweetIds.add(tweetId);
+    feedReadObserver.observe(node);
+  }
+}
+
+function resetFeedReadTracking() {
+  for (const timerId of readTrackingState.visibilityTimers.values()) {
+    window.clearTimeout(timerId);
+  }
+
+  readTrackingState.visibilityTimers.clear();
+  readTrackingState.pendingVideoIds.clear();
+  readTrackingState.observedTweetIds.clear();
+  feedReadObserver.disconnect();
+}
 
 function syncAuthorFollowState(authorUserId, following) {
   for (const tweet of feedItemsById.values()) {
@@ -170,6 +369,7 @@ async function loadSources() {
 }
 
 function resetFeed() {
+  resetFeedReadTracking();
   state.cursor = null;
   state.done = false;
   state.renderedCount = 0;
@@ -238,6 +438,7 @@ async function loadFeed() {
     gridController.syncLayout();
     appendFeedItemsToState(payload.items);
     gridController.appendFeedItems(payload.items);
+    observeUnreadFeedCards();
 
     state.renderedCount += payload.items.length;
     state.cursor = payload.nextCursor;
@@ -321,6 +522,7 @@ function hydrateBootstrappedFeed() {
     gridController.seedInitialFeedLayout();
     gridController.ensureColcade();
     gridController.hydrateExistingFeedItems();
+    observeUnreadFeedCards();
   }
 
   updateFeedSummary();
@@ -352,6 +554,15 @@ window.addEventListener("shortvideo:author-follow-change", (event) => {
   }
 
   syncAuthorFollowState(Number(authorUserId), event?.detail?.following === true);
+});
+
+window.addEventListener(VIEW_RECORDED_EVENT, (event) => {
+  const videoId = String(event?.detail?.videoId || "");
+  if (!videoId) {
+    return;
+  }
+
+  markFeedVideoAsRead(videoId);
 });
 
 detailModalController.bindDismissInteractions();

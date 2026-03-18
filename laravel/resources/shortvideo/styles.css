@@ -147,12 +147,17 @@
     transform: none;
   }
 
-  .detail-mobile-scroller {
-    scrollbar-width: none;
+  .detail-mobile-viewport {
+    overflow: hidden;
   }
 
-  .detail-mobile-scroller::-webkit-scrollbar {
-    display: none;
+  .detail-mobile-track {
+    will-change: transform;
+    transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .detail-mobile-track.is-dragging {
+    transition: none;
   }
 
   .detail-mobile-comments-layer:not([hidden]) {

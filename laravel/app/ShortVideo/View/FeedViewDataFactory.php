@@ -39,6 +39,7 @@ final class FeedViewDataFactory
                 fn (array $item): array => $this->makeFeedItemData($item),
                 is_array($feed['items'] ?? null) ? $feed['items'] : []
             ),
+            'gridMaxColumns' => max(1, min(4, (int) ($feed['gridMaxColumns'] ?? 4))),
             'gridIsEmpty' => ! empty($feed['isEmpty']),
             'bootstrapJson' => $this->serializeBootstrapData([
                 'items' => $feed['items'] ?? [],
@@ -78,13 +79,17 @@ final class FeedViewDataFactory
         $durationText = $this->formatVideoDurationText((string) ($tweet['durationText'] ?? ''));
 
         return [
+            'videoId' => isset($tweet['videoId']) && is_numeric((string) ($tweet['videoId'] ?? null)) ? (int) $tweet['videoId'] : null,
             'tweetId' => (string) ($tweet['tweetId'] ?? ''),
             'status' => (string) ($tweet['status'] ?? 'pending'),
             'authorName' => $authorName,
             'displayText' => $this->getDisplayText($tweet),
+            'detailUrl' => $this->resolveDetailUrl($tweet),
             'postedAtText' => $postedAtText ?? $this->formatFeedDate($tweet['postedAt'] ?? null),
             'titleLineClampClass' => $this->resolveTitleLineClampClass($titleLineClamp),
             'interactive' => $interactive,
+            'viewedByViewer' => ($tweet['viewedByViewer'] ?? false) === true,
+            'isNewForViewer' => ($tweet['isNewForViewer'] ?? false) === true,
             'rootAttributes' => $rootAttributes,
             'cardClass' => $cardClass,
             'media' => [
@@ -138,6 +143,7 @@ final class FeedViewDataFactory
                     ? trim((string) $tweet['authorName'])
                     : '@'.$authorHandle,
                 'displayText' => $this->getDisplayText($tweet),
+                'detailUrl' => $this->resolveDetailUrl($tweet),
                 'postedAtText' => $this->formatFeedDate($tweet['postedAt'] ?? null),
                 'titleLineClampClass' => 'line-clamp-1',
                 'interactive' => false,
@@ -265,6 +271,25 @@ final class FeedViewDataFactory
             $source !== '' => ['查看全部来源', $this->url->route('explore')],
             default => ['查看精选', $this->url->route('home')],
         };
+    }
+
+    /**
+     * @param  array<string, mixed>  $tweet
+     */
+    private function resolveDetailUrl(array $tweet): ?string
+    {
+        $detailUrl = trim((string) ($tweet['detailUrl'] ?? ''));
+        if ($detailUrl !== '') {
+            return $detailUrl;
+        }
+
+        $videoId = isset($tweet['videoId']) && is_numeric((string) ($tweet['videoId'] ?? null))
+            ? (int) $tweet['videoId']
+            : null;
+
+        return $videoId !== null
+            ? $this->url->route('videos.show', ['video' => $videoId], false)
+            : null;
     }
 
     private function formatFeedDate(mixed $value): string

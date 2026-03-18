@@ -36,6 +36,19 @@ final class ShortVideoPageViewFactory
     /**
      * @param  array<string, mixed>  $viewModel
      */
+    public function renderVideoDetailPage(array $viewModel): View
+    {
+        return $this->views->make('shortvideo.video-detail', array_merge(
+            $this->buildBaseViewData('', $viewModel),
+            [
+                'video' => is_array($viewModel['video'] ?? null) ? $viewModel['video'] : [],
+            ]
+        ));
+    }
+
+    /**
+     * @param  array<string, mixed>  $viewModel
+     */
     public function renderSubscriptionsPage(array $viewModel): View
     {
         $feed = is_array($viewModel['feed'] ?? null) ? $viewModel['feed'] : null;
@@ -71,46 +84,9 @@ final class ShortVideoPageViewFactory
      */
     public function renderHistoryPage(array $viewModel): View
     {
-        $history = is_array($viewModel['history'] ?? null) ? $viewModel['history'] : [];
-        $historyItems = is_array($history['items'] ?? null) ? $history['items'] : [];
-        $historyPagination = $this->resolveCollectionPagination(is_array($history['pagination'] ?? null) ? $history['pagination'] : []);
-        $eligibleHistoryItems = array_values(array_filter(
-            $historyItems,
-            static fn (array $item): bool => isset($item['videoId']) && is_numeric((string) $item['videoId'])
-        ));
-        $historyCount = count($eligibleHistoryItems);
-        $historyEmptyState = is_array($history['emptyState'] ?? null) ? $history['emptyState'] : [];
-
         return $this->views->make('shortvideo.history', array_merge(
             $this->buildBaseViewData('history', $viewModel),
-            [
-                'historyCount' => $historyCount,
-                'historyHasItems' => $historyCount > 0,
-                'historyPagination' => $historyPagination,
-                'historyItems' => array_map(
-                    fn (array $item): array => $this->feedViewDataFactory->makeFeedItemData(
-                        $item,
-                        interactive: false,
-                        useStaticPreview: true,
-                        postedAtText: null,
-                        frameClassOverride: 'aspect-video',
-                        titleLineClamp: 1,
-                        rootAttributes: [
-                            'data-history-record-item' => 'true',
-                            'data-history-video-id' => isset($item['videoId']) ? (string) $item['videoId'] : '',
-                        ],
-                        cardClass: 'h-full'
-                    ),
-                    $eligibleHistoryItems
-                ),
-                'historyEmptyState' => [
-                    'title' => (string) ($historyEmptyState['title'] ?? '还没有观看记录'),
-                    'description' => (string) ($historyEmptyState['description'] ?? '继续去探索页看看新内容。只要开始浏览，真实观看记录就会按时间倒序出现在这里。'),
-                    'iconClass' => 'ph ph-clock-counter-clockwise',
-                    'buttonLabel' => '去探索',
-                    'buttonHref' => $this->url->route('explore'),
-                ],
-            ]
+            $this->makeHistoryPanelViewData($viewModel)
         ));
     }
 
@@ -119,46 +95,9 @@ final class ShortVideoPageViewFactory
      */
     public function renderBookmarksPage(array $viewModel): View
     {
-        $bookmarks = is_array($viewModel['bookmarks'] ?? null) ? $viewModel['bookmarks'] : [];
-        $bookmarkItems = is_array($bookmarks['items'] ?? null) ? $bookmarks['items'] : [];
-        $bookmarkPagination = $this->resolveCollectionPagination(is_array($bookmarks['pagination'] ?? null) ? $bookmarks['pagination'] : []);
-        $eligibleBookmarkItems = array_values(array_filter(
-            $bookmarkItems,
-            static fn (array $item): bool => isset($item['videoId']) && is_numeric((string) $item['videoId'])
-        ));
-        $bookmarkCount = count($eligibleBookmarkItems);
-        $bookmarkEmptyState = is_array($bookmarks['emptyState'] ?? null) ? $bookmarks['emptyState'] : [];
-
         return $this->views->make('shortvideo.bookmarks', array_merge(
             $this->buildBaseViewData('bookmarks', $viewModel),
-            [
-                'bookmarkCount' => $bookmarkCount,
-                'bookmarkHasItems' => $bookmarkCount > 0,
-                'bookmarkPagination' => $bookmarkPagination,
-                'bookmarkItems' => array_map(
-                    fn (array $item): array => $this->feedViewDataFactory->makeFeedItemData(
-                        $item,
-                        interactive: false,
-                        useStaticPreview: true,
-                        postedAtText: null,
-                        frameClassOverride: 'aspect-video',
-                        titleLineClamp: 1,
-                        rootAttributes: [
-                            'data-bookmark-record-item' => 'true',
-                            'data-bookmark-video-id' => isset($item['videoId']) ? (string) $item['videoId'] : '',
-                        ],
-                        cardClass: 'h-full'
-                    ),
-                    $eligibleBookmarkItems
-                ),
-                'bookmarkEmptyState' => [
-                    'title' => (string) ($bookmarkEmptyState['title'] ?? '还没有收藏内容'),
-                    'description' => (string) ($bookmarkEmptyState['description'] ?? '看到想回看的视频时点一下收藏。你保存过的内容会按最近收藏时间排在这里。'),
-                    'iconClass' => 'ph ph-bookmark-simple',
-                    'buttonLabel' => '去探索',
-                    'buttonHref' => $this->url->route('explore'),
-                ],
-            ]
+            $this->makeBookmarksPanelViewData($viewModel)
         ));
     }
 
@@ -167,44 +106,9 @@ final class ShortVideoPageViewFactory
      */
     public function renderInteractionsPage(array $viewModel): View
     {
-        $interactions = is_array($viewModel['interactions'] ?? null) ? $viewModel['interactions'] : [];
-        $interactionItems = is_array($interactions['items'] ?? null) ? $interactions['items'] : [];
-        $interactionPagination = $this->resolveCollectionPagination(is_array($interactions['pagination'] ?? null) ? $interactions['pagination'] : []);
-        $eligibleInteractionItems = array_values(array_filter(
-            $interactionItems,
-            static fn (array $item): bool => isset($item['videoId']) && is_numeric((string) $item['videoId'])
-                && in_array((string) ($item['interactionType'] ?? ''), ['like', 'comment'], true)
-                && (
-                    (string) ($item['interactionType'] ?? '') !== 'comment'
-                    || (isset($item['commentId']) && is_numeric((string) $item['commentId']))
-                )
-        ));
-        $interactionCount = count($eligibleInteractionItems);
-        $interactionEmptyState = is_array($interactions['emptyState'] ?? null) ? $interactions['emptyState'] : [];
-
         return $this->views->make('shortvideo.interactions', array_merge(
             $this->buildBaseViewData('interactions', $viewModel),
-            [
-                'interactionCount' => $interactionCount,
-                'interactionHasItems' => $interactionCount > 0,
-                'interactionPagination' => $interactionPagination,
-                'interactionItems' => array_map(
-                    fn (array $item): array => $this->feedViewDataFactory->makeInteractionItemData(
-                        $item,
-                        (string) ($item['interactionType'] ?? '') === 'comment'
-                            ? '/api/videos/'.(int) ($item['videoId'] ?? 0).'/comments/'.(int) ($item['commentId'] ?? 0)
-                            : '/api/videos/'.(int) ($item['videoId'] ?? 0).'/likes'
-                    ),
-                    $eligibleInteractionItems
-                ),
-                'interactionEmptyState' => [
-                    'title' => (string) ($interactionEmptyState['title'] ?? '还没有互动内容'),
-                    'description' => (string) ($interactionEmptyState['description'] ?? '先去探索页和内容发生一点互动。你点赞或评论过的视频会按时间倒序出现在这里。'),
-                    'iconClass' => 'ph ph-chat-circle-dots',
-                    'buttonLabel' => '去探索',
-                    'buttonHref' => $this->url->route('explore'),
-                ],
-            ]
+            $this->makeInteractionsPanelViewData($viewModel)
         ));
     }
 
@@ -214,9 +118,22 @@ final class ShortVideoPageViewFactory
     public function renderProfilePage(array $viewModel): View
     {
         $isOwnProfile = ($viewModel['isOwnProfile'] ?? false) === true;
+        $selectedProfilePanel = is_string($viewModel['selectedPanel'] ?? null)
+            ? (string) $viewModel['selectedPanel']
+            : 'profile';
+        $profilePanelRequested = ($viewModel['hasExplicitPanelSelection'] ?? false) === true;
         $followState = is_array($viewModel['followState'] ?? null) ? $viewModel['followState'] : [];
         $followViewerUserId = isset($followState['viewerUserId']) && is_int($followState['viewerUserId'])
             ? $followState['viewerUserId']
+            : null;
+        $embeddedHistoryViewModel = $isOwnProfile && is_array($viewModel['embeddedHistory'] ?? null)
+            ? $viewModel['embeddedHistory']
+            : null;
+        $embeddedBookmarksViewModel = $isOwnProfile && is_array($viewModel['embeddedBookmarks'] ?? null)
+            ? $viewModel['embeddedBookmarks']
+            : null;
+        $embeddedInteractionsViewModel = $isOwnProfile && is_array($viewModel['embeddedInteractions'] ?? null)
+            ? $viewModel['embeddedInteractions']
             : null;
         $publicProfileFeedViewModel = ! $isOwnProfile && is_array($viewModel['publicProfileFeed'] ?? null)
             ? $viewModel['publicProfileFeed']
@@ -244,6 +161,29 @@ final class ShortVideoPageViewFactory
                 'isOwnProfile' => $isOwnProfile,
                 'profile' => is_array($viewModel['profile'] ?? null) ? $viewModel['profile'] : [],
                 'stats' => is_array($viewModel['stats'] ?? null) ? $viewModel['stats'] : [],
+                'selectedProfilePanel' => $selectedProfilePanel,
+                'profilePanelRequested' => $profilePanelRequested,
+                'profileDashboardItems' => is_array($viewModel['panelItems'] ?? null) ? $viewModel['panelItems'] : [],
+                'profilePanelMeta' => is_array($viewModel['profilePanel'] ?? null) ? $viewModel['profilePanel'] : [],
+                'creatorCenter' => is_array($viewModel['creatorCenter'] ?? null) ? $viewModel['creatorCenter'] : [],
+                'profileHistoryPage' => $embeddedHistoryViewModel !== null && is_array($embeddedHistoryViewModel['page'] ?? null)
+                    ? $embeddedHistoryViewModel['page']
+                    : [],
+                'profileHistoryPanel' => $embeddedHistoryViewModel !== null
+                    ? $this->makeHistoryPanelViewData($embeddedHistoryViewModel)
+                    : null,
+                'profileBookmarksPage' => $embeddedBookmarksViewModel !== null && is_array($embeddedBookmarksViewModel['page'] ?? null)
+                    ? $embeddedBookmarksViewModel['page']
+                    : [],
+                'profileBookmarksPanel' => $embeddedBookmarksViewModel !== null
+                    ? $this->makeBookmarksPanelViewData($embeddedBookmarksViewModel)
+                    : null,
+                'profileInteractionsPage' => $embeddedInteractionsViewModel !== null && is_array($embeddedInteractionsViewModel['page'] ?? null)
+                    ? $embeddedInteractionsViewModel['page']
+                    : [],
+                'profileInteractionsPanel' => $embeddedInteractionsViewModel !== null
+                    ? $this->makeInteractionsPanelViewData($embeddedInteractionsViewModel)
+                    : null,
                 'socialConnections' => $viewModel['socialConnections'] ?? null,
                 'profileVideoLibrary' => $viewModel['profileVideoLibrary'] ?? null,
                 'publicProfileFeed' => $publicProfileFeedViewModel,
@@ -255,6 +195,142 @@ final class ShortVideoPageViewFactory
                 'profileFollowScriptsEnabled' => $followViewerUserId !== null,
             ]
         ));
+    }
+
+    /**
+     * @param  array<string, mixed>  $viewModel
+     * @return array<string, mixed>
+     */
+    private function makeHistoryPanelViewData(array $viewModel): array
+    {
+        $history = is_array($viewModel['history'] ?? null) ? $viewModel['history'] : [];
+        $historyItems = is_array($history['items'] ?? null) ? $history['items'] : [];
+        $historyPagination = $this->resolveCollectionPagination(is_array($history['pagination'] ?? null) ? $history['pagination'] : []);
+        $eligibleHistoryItems = array_values(array_filter(
+            $historyItems,
+            static fn (array $item): bool => isset($item['videoId']) && is_numeric((string) $item['videoId'])
+        ));
+        $historyCount = count($eligibleHistoryItems);
+        $historyEmptyState = is_array($history['emptyState'] ?? null) ? $history['emptyState'] : [];
+
+        return [
+            'historyCount' => $historyCount,
+            'historyHasItems' => $historyCount > 0,
+            'historyPagination' => $historyPagination,
+            'historyItems' => array_map(
+                fn (array $item): array => $this->feedViewDataFactory->makeFeedItemData(
+                    $item,
+                    interactive: false,
+                    useStaticPreview: true,
+                    postedAtText: null,
+                    frameClassOverride: 'aspect-video',
+                    titleLineClamp: 1,
+                    rootAttributes: [
+                        'data-history-record-item' => 'true',
+                        'data-history-video-id' => isset($item['videoId']) ? (string) $item['videoId'] : '',
+                    ],
+                    cardClass: 'h-full'
+                ),
+                $eligibleHistoryItems
+            ),
+            'historyEmptyState' => [
+                'title' => (string) ($historyEmptyState['title'] ?? '还没有观看记录'),
+                'description' => (string) ($historyEmptyState['description'] ?? '继续去探索页看看新内容。只要开始浏览，真实观看记录就会按时间倒序出现在这里。'),
+                'iconClass' => 'ph ph-clock-counter-clockwise',
+                'buttonLabel' => '去探索',
+                'buttonHref' => $this->url->route('explore'),
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $viewModel
+     * @return array<string, mixed>
+     */
+    private function makeBookmarksPanelViewData(array $viewModel): array
+    {
+        $bookmarks = is_array($viewModel['bookmarks'] ?? null) ? $viewModel['bookmarks'] : [];
+        $bookmarkItems = is_array($bookmarks['items'] ?? null) ? $bookmarks['items'] : [];
+        $bookmarkPagination = $this->resolveCollectionPagination(is_array($bookmarks['pagination'] ?? null) ? $bookmarks['pagination'] : []);
+        $eligibleBookmarkItems = array_values(array_filter(
+            $bookmarkItems,
+            static fn (array $item): bool => isset($item['videoId']) && is_numeric((string) $item['videoId'])
+        ));
+        $bookmarkCount = count($eligibleBookmarkItems);
+        $bookmarkEmptyState = is_array($bookmarks['emptyState'] ?? null) ? $bookmarks['emptyState'] : [];
+
+        return [
+            'bookmarkCount' => $bookmarkCount,
+            'bookmarkHasItems' => $bookmarkCount > 0,
+            'bookmarkPagination' => $bookmarkPagination,
+            'bookmarkItems' => array_map(
+                fn (array $item): array => $this->feedViewDataFactory->makeFeedItemData(
+                    $item,
+                    interactive: false,
+                    useStaticPreview: true,
+                    postedAtText: null,
+                    frameClassOverride: 'aspect-video',
+                    titleLineClamp: 1,
+                    rootAttributes: [
+                        'data-bookmark-record-item' => 'true',
+                        'data-bookmark-video-id' => isset($item['videoId']) ? (string) $item['videoId'] : '',
+                    ],
+                    cardClass: 'h-full'
+                ),
+                $eligibleBookmarkItems
+            ),
+            'bookmarkEmptyState' => [
+                'title' => (string) ($bookmarkEmptyState['title'] ?? '还没有收藏内容'),
+                'description' => (string) ($bookmarkEmptyState['description'] ?? '看到想回看的视频时点一下收藏。你保存过的内容会按最近收藏时间排在这里。'),
+                'iconClass' => 'ph ph-bookmark-simple',
+                'buttonLabel' => '去探索',
+                'buttonHref' => $this->url->route('explore'),
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $viewModel
+     * @return array<string, mixed>
+     */
+    private function makeInteractionsPanelViewData(array $viewModel): array
+    {
+        $interactions = is_array($viewModel['interactions'] ?? null) ? $viewModel['interactions'] : [];
+        $interactionItems = is_array($interactions['items'] ?? null) ? $interactions['items'] : [];
+        $interactionPagination = $this->resolveCollectionPagination(is_array($interactions['pagination'] ?? null) ? $interactions['pagination'] : []);
+        $eligibleInteractionItems = array_values(array_filter(
+            $interactionItems,
+            static fn (array $item): bool => isset($item['videoId']) && is_numeric((string) $item['videoId'])
+                && in_array((string) ($item['interactionType'] ?? ''), ['like', 'comment'], true)
+                && (
+                    (string) ($item['interactionType'] ?? '') !== 'comment'
+                    || (isset($item['commentId']) && is_numeric((string) $item['commentId']))
+                )
+        ));
+        $interactionCount = count($eligibleInteractionItems);
+        $interactionEmptyState = is_array($interactions['emptyState'] ?? null) ? $interactions['emptyState'] : [];
+
+        return [
+            'interactionCount' => $interactionCount,
+            'interactionHasItems' => $interactionCount > 0,
+            'interactionPagination' => $interactionPagination,
+            'interactionItems' => array_map(
+                fn (array $item): array => $this->feedViewDataFactory->makeInteractionItemData(
+                    $item,
+                    (string) ($item['interactionType'] ?? '') === 'comment'
+                        ? '/api/videos/'.(int) ($item['videoId'] ?? 0).'/comments/'.(int) ($item['commentId'] ?? 0)
+                        : '/api/videos/'.(int) ($item['videoId'] ?? 0).'/likes'
+                ),
+                $eligibleInteractionItems
+            ),
+            'interactionEmptyState' => [
+                'title' => (string) ($interactionEmptyState['title'] ?? '还没有互动内容'),
+                'description' => (string) ($interactionEmptyState['description'] ?? '先去探索页和内容发生一点互动。你点赞或评论过的视频会按时间倒序出现在这里。'),
+                'iconClass' => 'ph ph-chat-circle-dots',
+                'buttonLabel' => '去探索',
+                'buttonHref' => $this->url->route('explore'),
+            ],
+        ];
     }
 
     /**
@@ -360,9 +436,19 @@ final class ShortVideoPageViewFactory
     {
         $routeName = request()->route()?->getName();
         $resolvedRouteName = is_string($routeName) && $routeName !== '' ? $routeName : 'viewer.history';
+        $routeParameters = request()->route()?->parametersWithoutNulls() ?? [];
+        $queryParameters = request()->query();
 
-        return $page <= 1
-            ? $this->url->route($resolvedRouteName)
-            : $this->url->route($resolvedRouteName, ['page' => $page]);
+        if (is_array($queryParameters)) {
+            unset($queryParameters['page']);
+        } else {
+            $queryParameters = [];
+        }
+
+        return $this->url->route($resolvedRouteName, array_merge(
+            $routeParameters,
+            $queryParameters,
+            $page <= 1 ? [] : ['page' => $page]
+        ));
     }
 }

@@ -311,6 +311,15 @@ final class FeedRepository
                         CASE
                             WHEN ? IS NOT NULL AND EXISTS (
                                 SELECT 1
+                                FROM video_views vv
+                                WHERE vv.video_id = v.id
+                                  AND vv.user_id = ?
+                            ) THEN 1
+                            ELSE 0
+                        END AS viewedByViewer,
+                        CASE
+                            WHEN ? IS NOT NULL AND EXISTS (
+                                SELECT 1
                                 FROM video_likes vl
                                 WHERE vl.video_id = v.id
                                   AND vl.user_id = ?
@@ -374,6 +383,8 @@ final class FeedRepository
                     LIMIT ?
                 SQL,
                 [
+                    $viewerUserId,
+                    $viewerUserId,
                     $viewerUserId,
                     $viewerUserId,
                     $viewerUserId,
@@ -838,6 +849,7 @@ final class FeedRepository
                 'likedByViewer' => (bool) ($row->likedByViewer ?? false),
                 'bookmarkedByViewer' => (bool) ($row->bookmarkedByViewer ?? false),
             ],
+            'viewedByViewer' => (bool) ($row->viewedByViewer ?? false),
             'sortValue' => $row->sortValue ? (string) $row->sortValue : null,
             'secondarySortValue' => $row->secondarySortValue ? (string) $row->secondarySortValue : null,
             'cursorTweetId' => $row->cursorTweetId ? (string) $row->cursorTweetId : ($row->tweetId ? (string) $row->tweetId : null),

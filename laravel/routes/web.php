@@ -10,6 +10,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RankingsController;
 use App\Http\Controllers\RegisterController;
 use App\Http\Controllers\SubscriptionsController;
+use App\Http\Controllers\VideoController;
 use App\Http\Controllers\ViewerLibraryController;
 use Illuminate\Support\Facades\Route;
 
@@ -22,7 +23,13 @@ Route::post('/password/reset', [PasswordResetController::class, 'store'])->name(
 Route::get('/', HomeController::class)->name('home');
 Route::get('/explore', ExploreController::class)->name('explore');
 Route::get('/subscriptions', SubscriptionsController::class)->name('subscriptions');
+Route::get('/subscriptions/{account}', SubscriptionsController::class)
+    ->where('account', '[A-Za-z0-9._-]+')
+    ->name('subscriptions.show');
 Route::get('/rankings', RankingsController::class)->name('rankings');
+Route::get('/videos/{video}', VideoController::class)
+    ->whereNumber('video')
+    ->name('videos.show');
 Route::get('/avatars/{user}/{filename}', ManagedAvatarController::class)
     ->whereNumber('user')
     ->where('filename', '[^/]+')

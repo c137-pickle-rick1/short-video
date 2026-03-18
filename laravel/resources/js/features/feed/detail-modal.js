@@ -5,6 +5,13 @@ import { escapeHtml, getAuthorInitial, getDisplayText, renderAvatarMarkup } from
 
 const MOBILE_BREAKPOINT_QUERY = "(max-width: 1023px)";
 const COMMENT_DRAWER_CLOSE_DELAY_MS = 220;
+const MOBILE_SWIPE_AXIS_LOCK_PX = 10;
+const MOBILE_SWIPE_DISTANCE_RATIO = 0.18;
+const MOBILE_SWIPE_MIN_DISTANCE_PX = 56;
+const MOBILE_SWIPE_VELOCITY_PX_PER_MS = 0.45;
+const MOBILE_WHEEL_TRIGGER_PX = 72;
+const MOBILE_WHEEL_RESET_DELAY_MS = 160;
+const MOBILE_WHEEL_COOLDOWN_MS = 260;
 const scheduleTask =
   typeof requestAnimationFrame === "function" ? requestAnimationFrame : (callback) => setTimeout(callback, 0);
 
@@ -191,22 +198,6 @@ function clampIndex(value, max) {
   return Math.max(0, Math.min(value, max - 1));
 }
 
-function getDetailSearchQuery(tweet) {
-  const displayText = String(getDisplayText(tweet) || "")
-    .replace(/\s+/gu, " ")
-    .trim();
-  const hashtagMatch = displayText.match(/#([^\s#]+)/u);
-  if (hashtagMatch?.[1]) {
-    return hashtagMatch[1];
-  }
-
-  if (displayText && displayText !== "未填写内容文案") {
-    return displayText.slice(0, 18);
-  }
-
-  return String(tweet?.authorName || tweet?.authorHandle || "短视频");
-}
-
 function getDetailShareUrl(tweet) {
   const candidate = String(tweet?.tweetUrl || "").trim();
   return candidate || window.location.href;
@@ -225,14 +216,19 @@ function openAuthModal(panel = "login") {
 function buildMobileViewerMarkup() {
   return `
     <div
-      class="relative flex h-[100dvh] w-full flex-col bg-black"
+      class="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-black"
       data-detail-layout-node="true"
       data-mobile-detail-root="true"
     >
       <div
-        class="detail-mobile-scroller relative h-full w-full overflow-y-auto overscroll-contain snap-y snap-mandatory"
-        data-mobile-detail-scroller="true"
-      ></div>
+        class="detail-mobile-viewport relative h-full w-full overflow-hidden"
+        data-mobile-detail-viewport="true"
+      >
+        <div
+          class="detail-mobile-track relative flex h-full w-full flex-col"
+          data-mobile-detail-track="true"
+        ></div>
+      </div>
     </div>
   `;
 }
@@ -256,12 +252,22 @@ export function createDetailModalController({
   let currentTweetId = "";
   let currentMobileIndex = -1;
   let commentsLoadToken = 0;
-  let mobileScrollContainer = null;
+  let mobileViewport = null;
+  let mobileTrack = null;
   let mobileCommentsLayer = null;
   let mobileCommentsDrawer = null;
   let mobileCommentsHideTimer = 0;
   let activeCommentsTweetId = "";
-  let mobileScrollSyncScheduled = false;
+  let mobileGestureActive = false;
+  let mobileGestureDragging = false;
+  let mobileGestureStartX = 0;
+  let mobileGestureStartY = 0;
+  let mobileGestureLastY = 0;
+  let mobileGestureStartTime = 0;
+  let mobileDragOffset = 0;
+  let mobileWheelDelta = 0;
+  let mobileWheelLockUntil = 0;
+  let mobileWheelResetTimer = 0;
 
   function getOrderedFeedItems() {
     const items = typeof getOrderedTweets === "function" ? getOrderedTweets() : [];
@@ -326,14 +332,39 @@ export function createDetailModalController({
     }
   }
 
+  function resetMobileGestureState() {
+    mobileGestureActive = false;
+    mobileGestureDragging = false;
+    mobileGestureStartX = 0;
+    mobileGestureStartY = 0;
+    mobileGestureLastY = 0;
+    mobileGestureStartTime = 0;
+    mobileDragOffset = 0;
+  }
+
+  function clearMobileWheelResetTimer() {
+    if (mobileWheelResetTimer) {
+      window.clearTimeout(mobileWheelResetTimer);
+      mobileWheelResetTimer = 0;
+    }
+  }
+
+  function resetMobileWheelState() {
+    clearMobileWheelResetTimer();
+    mobileWheelDelta = 0;
+    mobileWheelLockUntil = 0;
+  }
+
   function resetMobileReferences() {
     clearCommentDrawerHideTimer();
-    mobileScrollContainer = null;
+    resetMobileGestureState();
+    resetMobileWheelState();
+    mobileViewport = null;
+    mobileTrack = null;
     mobileCommentsLayer = null;
     mobileCommentsDrawer = null;
     activeCommentsTweetId = "";
     currentMobileIndex = -1;
-    mobileScrollSyncScheduled = false;
   }
 
   function resetPanelState() {
@@ -407,9 +438,20 @@ export function createDetailModalController({
           sessionId: getViewerSessionId()
         }
       });
+      tweet.viewedByViewer = true;
+      tweet.isNewForViewer = false;
       updateTweetEngagement(tweet, payload?.engagement || {});
       syncAllReactionButtons(tweet);
       syncCommentMeta(tweet);
+      window.dispatchEvent(
+        new CustomEvent("shortvideo:video-view-recorded", {
+          detail: {
+            source: "detail-modal",
+            videoId: String(videoId),
+            tweetId: String(tweet?.tweetId || "")
+          }
+        })
+      );
     } catch (error) {
       console.error(error);
     }
@@ -929,12 +971,12 @@ export function createDetailModalController({
   }
 
   function appendMissingMobileSlides() {
-    if (!(mobileScrollContainer instanceof HTMLElement)) {
+    if (!(mobileTrack instanceof HTMLElement)) {
       return;
     }
 
     const existingTweetIds = new Set(
-      Array.from(mobileScrollContainer.querySelectorAll("[data-mobile-detail-slide='true']")).map((node) =>
+      Array.from(mobileTrack.querySelectorAll("[data-mobile-detail-slide='true']")).map((node) =>
         String(node?.dataset?.tweetId || "")
       )
     );
@@ -945,7 +987,7 @@ export function createDetailModalController({
         continue;
       }
 
-      mobileScrollContainer.append(createContent(renderMobileFeedSlide(tweet)));
+      mobileTrack.append(createContent(renderMobileFeedSlide(tweet)));
       existingTweetIds.add(tweetId);
     }
 
@@ -964,21 +1006,33 @@ export function createDetailModalController({
     indicator.textContent = `${Math.max(1, currentMobileIndex + 1)} / ${Math.max(1, total)}`;
   }
 
+  function getMobileViewportHeight() {
+    if (mobileViewport instanceof HTMLElement && mobileViewport.clientHeight > 0) {
+      return mobileViewport.clientHeight;
+    }
+
+    if (detailModalPanel instanceof HTMLElement && detailModalPanel.clientHeight > 0) {
+      return detailModalPanel.clientHeight;
+    }
+
+    return Math.max(1, window.innerHeight || 0);
+  }
+
+  function applyMobileTrackTransform(index = currentMobileIndex, { animate = true } = {}) {
+    if (!(mobileTrack instanceof HTMLElement)) {
+      return;
+    }
+
+    const normalizedIndex = Math.max(0, Number(index) || 0);
+    const translateY = normalizedIndex * getMobileViewportHeight() * -1 + mobileDragOffset;
+
+    mobileTrack.classList.toggle("is-dragging", !animate);
+    mobileTrack.style.transform = `translate3d(0, ${Math.round(translateY)}px, 0)`;
+  }
+
   function scrollMobileToIndex(index, behavior = "auto") {
-    if (!(mobileScrollContainer instanceof HTMLElement)) {
-      return;
-    }
-
-    const slides = getCurrentSlideNodes();
-    const slide = slides[index];
-    if (!(slide instanceof HTMLElement)) {
-      return;
-    }
-
-    mobileScrollContainer.scrollTo({
-      top: slide.offsetTop,
-      behavior
-    });
+    mobileDragOffset = 0;
+    applyMobileTrackTransform(index, { animate: behavior === "smooth" });
   }
 
   function maybeLoadMoreForIndex(index) {
@@ -988,7 +1042,7 @@ export function createDetailModalController({
     }
   }
 
-  function activateMobileIndex(index, { alignScroll = false, force = false } = {}) {
+  function activateMobileIndex(index, { animateTrack = false, force = false, syncTrack = true } = {}) {
     const items = getOrderedFeedItems();
     if (!items.length) {
       return;
@@ -1001,8 +1055,8 @@ export function createDetailModalController({
     }
 
     if (nextIndex === currentMobileIndex && !force) {
-      if (alignScroll) {
-        scrollMobileToIndex(nextIndex);
+      if (syncTrack) {
+        scrollMobileToIndex(nextIndex, animateTrack ? "smooth" : "auto");
       }
       maybeLoadMoreForIndex(nextIndex);
       updateMobilePositionIndicator();
@@ -1028,33 +1082,195 @@ export function createDetailModalController({
     updateMobilePositionIndicator();
     maybeLoadMoreForIndex(nextIndex);
 
-    if (alignScroll) {
+    if (syncTrack) {
       scheduleTask(() => {
-        scrollMobileToIndex(nextIndex);
+        scrollMobileToIndex(nextIndex, animateTrack ? "smooth" : "auto");
       });
     }
   }
 
-  function syncActiveMobileSlideFromScroll() {
-    if (!(mobileScrollContainer instanceof HTMLElement)) {
-      return;
-    }
-
-    const viewportHeight = Math.max(1, mobileScrollContainer.clientHeight);
-    const nextIndex = clampIndex(Math.round(mobileScrollContainer.scrollTop / viewportHeight), getOrderedFeedItems().length);
-    activateMobileIndex(nextIndex);
+  function getMobileSwipeThreshold() {
+    return Math.max(MOBILE_SWIPE_MIN_DISTANCE_PX, getMobileViewportHeight() * MOBILE_SWIPE_DISTANCE_RATIO);
   }
 
-  function scheduleMobileScrollSync() {
-    if (mobileScrollSyncScheduled) {
+  function shouldIgnoreMobileSwipeTarget(target) {
+    if (!(target instanceof Element)) {
+      return false;
+    }
+
+    if (mobileCommentsLayer instanceof HTMLElement && mobileCommentsLayer.hidden === false) {
+      return true;
+    }
+
+    return Boolean(
+      target.closest(
+        "button, a, input, textarea, select, label, [contenteditable='true'], [data-detail-progress-shell='true'], [data-mobile-comments-layer='true']"
+      )
+    );
+  }
+
+  function commitMobileGesture(timeStamp) {
+    const wasDragging = mobileGestureDragging;
+    const deltaY = mobileGestureLastY - mobileGestureStartY;
+    const elapsed = Math.max(1, Number(timeStamp || performance.now()) - mobileGestureStartTime);
+    const velocityY = deltaY / elapsed;
+    let nextIndex = currentMobileIndex;
+
+    if (wasDragging) {
+      const swipeThreshold = getMobileSwipeThreshold();
+      if (deltaY <= -swipeThreshold || velocityY <= -MOBILE_SWIPE_VELOCITY_PX_PER_MS) {
+        nextIndex += 1;
+      } else if (deltaY >= swipeThreshold || velocityY >= MOBILE_SWIPE_VELOCITY_PX_PER_MS) {
+        nextIndex -= 1;
+      }
+    }
+
+    nextIndex = clampIndex(nextIndex, getOrderedFeedItems().length);
+    resetMobileGestureState();
+
+    if (!wasDragging) {
       return;
     }
 
-    mobileScrollSyncScheduled = true;
-    scheduleTask(() => {
-      mobileScrollSyncScheduled = false;
-      syncActiveMobileSlideFromScroll();
-    });
+    if (nextIndex !== currentMobileIndex) {
+      activateMobileIndex(nextIndex, { animateTrack: true });
+      return;
+    }
+
+    scrollMobileToIndex(currentMobileIndex, "smooth");
+  }
+
+  function bindMobileSwipeInteractions() {
+    if (!(mobileViewport instanceof HTMLElement)) {
+      return;
+    }
+
+    mobileViewport.addEventListener(
+      "touchstart",
+      (event) => {
+        if (!isMobileMode() || event.touches.length !== 1 || shouldIgnoreMobileSwipeTarget(event.target)) {
+          resetMobileGestureState();
+          return;
+        }
+
+        const touch = event.touches[0];
+        mobileGestureActive = true;
+        mobileGestureDragging = false;
+        mobileGestureStartX = touch.clientX;
+        mobileGestureStartY = touch.clientY;
+        mobileGestureLastY = touch.clientY;
+        mobileGestureStartTime = Number(event.timeStamp || performance.now());
+        mobileTrack?.classList.remove("is-dragging");
+      },
+      { passive: true }
+    );
+
+    mobileViewport.addEventListener(
+      "touchmove",
+      (event) => {
+        if (!mobileGestureActive || event.touches.length !== 1) {
+          return;
+        }
+
+        const touch = event.touches[0];
+        const deltaX = touch.clientX - mobileGestureStartX;
+        const deltaY = touch.clientY - mobileGestureStartY;
+
+        if (!mobileGestureDragging) {
+          if (Math.abs(deltaX) < MOBILE_SWIPE_AXIS_LOCK_PX && Math.abs(deltaY) < MOBILE_SWIPE_AXIS_LOCK_PX) {
+            return;
+          }
+
+          if (Math.abs(deltaY) <= Math.abs(deltaX)) {
+            resetMobileGestureState();
+            return;
+          }
+
+          mobileGestureDragging = true;
+        }
+
+        mobileGestureLastY = touch.clientY;
+
+        const isBeforeFirstSlide = currentMobileIndex <= 0 && deltaY > 0;
+        const isAfterLastSlide = currentMobileIndex >= getOrderedFeedItems().length - 1 && deltaY < 0;
+        mobileDragOffset = isBeforeFirstSlide || isAfterLastSlide ? deltaY * 0.28 : deltaY;
+
+        applyMobileTrackTransform(currentMobileIndex, { animate: false });
+        event.preventDefault();
+      },
+      { passive: false }
+    );
+
+    mobileViewport.addEventListener(
+      "touchend",
+      (event) => {
+        if (!mobileGestureActive) {
+          return;
+        }
+
+        commitMobileGesture(event.timeStamp);
+      },
+      { passive: true }
+    );
+
+    mobileViewport.addEventListener(
+      "touchcancel",
+      () => {
+        const wasDragging = mobileGestureDragging;
+        resetMobileGestureState();
+        if (wasDragging) {
+          scrollMobileToIndex(currentMobileIndex, "smooth");
+        }
+      },
+      { passive: true }
+    );
+
+    mobileViewport.addEventListener(
+      "wheel",
+      (event) => {
+        if (
+          !isMobileMode() ||
+          shouldIgnoreMobileSwipeTarget(event.target) ||
+          Math.abs(event.deltaY) <= Math.abs(event.deltaX)
+        ) {
+          return;
+        }
+
+        event.preventDefault();
+
+        const now = performance.now();
+        if (now < mobileWheelLockUntil) {
+          return;
+        }
+
+        const nextDelta = mobileWheelDelta + event.deltaY;
+        mobileWheelDelta = Math.sign(nextDelta) !== Math.sign(mobileWheelDelta) ? event.deltaY : nextDelta;
+
+        clearMobileWheelResetTimer();
+        mobileWheelResetTimer = window.setTimeout(() => {
+          mobileWheelResetTimer = 0;
+          mobileWheelDelta = 0;
+        }, MOBILE_WHEEL_RESET_DELAY_MS);
+
+        if (Math.abs(mobileWheelDelta) < MOBILE_WHEEL_TRIGGER_PX) {
+          return;
+        }
+
+        mobileWheelLockUntil = now + MOBILE_WHEEL_COOLDOWN_MS;
+        const direction = mobileWheelDelta > 0 ? 1 : -1;
+        mobileWheelDelta = 0;
+        clearMobileWheelResetTimer();
+
+        const nextIndex = clampIndex(currentMobileIndex + direction, getOrderedFeedItems().length);
+        if (nextIndex === currentMobileIndex) {
+          scrollMobileToIndex(currentMobileIndex, "smooth");
+          return;
+        }
+
+        activateMobileIndex(nextIndex, { animateTrack: true });
+      },
+      { passive: false }
+    );
   }
 
   function renderDesktopView(tweet) {
@@ -1078,21 +1294,18 @@ export function createDetailModalController({
 
     applyPanelAccessibility("mobile");
     detailModalPanel.append(createContent(buildMobileViewerMarkup()));
-    mobileScrollContainer = detailModalPanel.querySelector("[data-mobile-detail-scroller='true']");
-    if (!(mobileScrollContainer instanceof HTMLElement)) {
+    mobileViewport = detailModalPanel.querySelector("[data-mobile-detail-viewport='true']");
+    mobileTrack = detailModalPanel.querySelector("[data-mobile-detail-track='true']");
+    if (!(mobileViewport instanceof HTMLElement) || !(mobileTrack instanceof HTMLElement)) {
       return;
     }
 
     appendMissingMobileSlides();
-    mobileScrollContainer.addEventListener("scroll", scheduleMobileScrollSync, { passive: true });
+    bindMobileSwipeInteractions();
     createOrReplaceMobileCommentsLayer(tweet);
 
     const initialIndex = getTweetIndex(tweet?.tweetId);
     activateMobileIndex(initialIndex >= 0 ? initialIndex : 0, { force: true });
-    scheduleTask(() => {
-      scrollMobileToIndex(currentMobileIndex, "auto");
-      scheduleMobileScrollSync();
-    });
   }
 
   function resolveTweetFromElement(element) {
@@ -1110,15 +1323,6 @@ export function createDetailModalController({
     }
 
     return getCurrentTweet();
-  }
-
-  function openSearchResults(trigger) {
-    const tweet = resolveTweetFromElement(trigger);
-    if (!tweet) {
-      return;
-    }
-
-    window.location.href = `/explore?q=${encodeURIComponent(getDetailSearchQuery(tweet))}`;
   }
 
   async function handleShareAction(trigger) {
@@ -1420,12 +1624,6 @@ export function createDetailModalController({
       const reactionButton = target.closest("[data-detail-reaction-button]");
       if (reactionButton instanceof HTMLButtonElement) {
         void handleReactionButtonClick(reactionButton);
-        return;
-      }
-
-      const searchAction = target.closest("[data-detail-search-action='true']");
-      if (searchAction instanceof HTMLElement) {
-        openSearchResults(searchAction);
         return;
       }
 

@@ -7,6 +7,7 @@ export default defineConfig({
       input: [
         "laravel/resources/shortvideo/styles.css",
         "laravel/resources/js/pages/feed/index.js",
+        "laravel/resources/js/pages/subscriptions/index.js",
         "laravel/resources/js/pages/bookmarks/index.js",
         "laravel/resources/js/pages/history/index.js",
         "laravel/resources/js/pages/interactions/index.js",

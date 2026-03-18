@@ -127,6 +127,23 @@ export function renderFeedItem(tweet) {
   const safeStatus = escapeHtml(tweet.status || "pending");
   const frameClass = getMediaFrameClass(tweet);
   const profileUrl = getProfileUrl(tweet.authorUsername);
+  const detailUrl = escapeHtml(String(tweet.detailUrl || "").trim());
+  const titleMarkup = detailUrl
+    ? `
+        <h3 class="line-clamp-2 overflow-hidden text-base font-semibold leading-6 text-gray-900">
+          <a
+            href="${detailUrl}"
+            class="rounded-sm transition hover:text-rose-600 focus:outline-none focus-visible:text-rose-600"
+          >
+            ${safeText}
+          </a>
+        </h3>
+      `
+    : `
+        <h3 class="line-clamp-2 overflow-hidden text-base font-semibold leading-6 text-gray-900">
+          <span>${safeText}</span>
+        </h3>
+      `;
 
   return `
     <article
@@ -141,9 +158,7 @@ export function renderFeedItem(tweet) {
     >
       ${renderFeedMedia({ tweet, frameClass, authorHandle })}
       <div class="grid gap-3 px-4 pb-4 pt-3">
-        <p class="line-clamp-2 overflow-hidden text-base font-semibold leading-6 text-gray-900">
-          ${safeText}
-        </p>
+        ${titleMarkup}
         <div class="flex items-center justify-between gap-3">
           ${renderAuthorIdentity({
             imageUrl: tweet.authorAvatarUrl,
@@ -237,7 +252,7 @@ export function renderMobileFeedSlide(tweet) {
 
   return `
     <article
-      class="mobile-detail-slide relative flex h-[100dvh] w-full snap-start snap-always items-stretch justify-center overflow-hidden bg-black"
+      class="mobile-detail-slide relative flex h-full min-h-full w-full flex-none items-stretch justify-center overflow-hidden bg-black"
       data-detail-layout-node="true"
       data-mobile-detail-slide="true"
       data-tweet-id="${safeTweetId}"
@@ -269,14 +284,6 @@ export function renderMobileFeedSlide(tweet) {
         </button>
 
         <div class="flex items-center gap-3">
-          <button
-            type="button"
-            class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-black/35 text-white backdrop-blur-xl transition hover:bg-black/55"
-            data-detail-search-action="true"
-            aria-label="搜索相关内容"
-          >
-            <i class="ph ph-magnifying-glass text-lg leading-none" aria-hidden="true"></i>
-          </button>
           <button
             type="button"
             class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-black/35 text-white backdrop-blur-xl transition hover:bg-black/55"

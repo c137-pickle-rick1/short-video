@@ -122,9 +122,20 @@ final class FeedService
     /**
      * @return array<string, mixed>
      */
-    public function getProfilePageViewModel(?User $viewer, User $profileUser, ?string $selectedLibraryTab = null): array
-    {
-        return $this->feedPages->getProfilePageViewModel($viewer, $profileUser, $selectedLibraryTab);
+    public function getProfilePageViewModel(
+        ?User $viewer,
+        User $profileUser,
+        ?string $selectedLibraryTab = null,
+        ?string $selectedPanel = null,
+        int|string|null $selectedPanelPage = null
+    ): array {
+        return $this->feedPages->getProfilePageViewModel(
+            $viewer,
+            $profileUser,
+            $selectedLibraryTab,
+            $selectedPanel,
+            $selectedPanelPage
+        );
     }
 
     public function formatFeedSummary(

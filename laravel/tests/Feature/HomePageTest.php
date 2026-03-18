@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\Video;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 final class HomePageTest extends TestCase
@@ -299,7 +300,7 @@ final class HomePageTest extends TestCase
         $response->assertDontSee('id="feed-grid"', false);
     }
 
-    public function test_subscriptions_page_renders_followed_account_tabs_and_empty_state_when_selected_creator_has_no_published_videos(): void
+    public function test_subscriptions_root_page_renders_followed_account_list_without_default_selection(): void
     {
         $repository = $this->useShortVideoDatabase();
         $viewer = User::factory()->create([
@@ -316,22 +317,50 @@ final class HomePageTest extends TestCase
         $response = $this->actingAs($viewer)->get('/subscriptions');
 
         $response->assertOk();
-        $response->assertSee('data-subscriptions-follow-tabs="true"', false);
-        $response->assertSee('data-subscriptions-selected-account="silent_creator"', false);
-        $response->assertSee('data-subscriptions-follow-tab="silent_creator"', false);
-        $response->assertSee('detail-mobile-scroller', false);
-        $response->assertSee('这个账号还没有公开发布的视频', false);
-        $response->assertSee('切换到其他已关注账号，或者先去探索页继续补充订阅内容。', false);
+        $response->assertSee('data-subscriptions-follow-list="true"', false);
+        $response->assertDontSee('data-subscriptions-page-nav="true"', false);
+        $response->assertSee('data-subscriptions-selected-account=""', false);
+        $response->assertSee('data-subscriptions-account-item="true"', false);
+        $response->assertSee('data-subscriptions-account-username="silent_creator"', false);
+        $response->assertSee(route('subscriptions.show', ['account' => 'silent_creator']), false);
+        $response->assertSee('data-active="false"', false);
+        $response->assertDontSee('&#64;silent_creator', false);
+        $response->assertSee('暂无更新', false);
+        $response->assertSee('选择一个已关注账号', false);
+        $response->assertSee('从左侧列表进入某个订阅者，右侧只会展示这个账号的公开视频。', false);
         $response->assertDontSee('data-author-follow-button="true"', false);
-        $response->assertSee('id="feed-bootstrap"', false);
-        $response->assertSee('id="feed-grid"', false);
-        $response->assertSee('id="empty-state-template"', false);
-        $response->assertDontSee('Following', false);
-        $response->assertDontSee('当前查看', false);
-        $response->assertDontSee('关注的创作者最近没有更新', false);
+        $response->assertDontSee('id="feed-bootstrap"', false);
+        $response->assertDontSee('id="feed-grid"', false);
+        $response->assertDontSee('这个账号还没有公开发布的视频', false);
     }
 
-    public function test_subscriptions_page_switches_between_followed_accounts_and_renders_selected_accounts_videos(): void
+    public function test_subscriptions_account_page_renders_empty_state_when_selected_creator_has_no_published_videos(): void
+    {
+        $repository = $this->useShortVideoDatabase();
+        $viewer = User::factory()->create([
+            'username' => 'quiet_follow_selected_viewer',
+            'email' => 'quiet_follow_selected_viewer@example.com',
+        ]);
+        $followedCreator = User::factory()->create([
+            'username' => 'silent_creator_selected',
+            'email' => 'silent_creator_selected@example.com',
+        ]);
+
+        $repository->followUser($viewer->id, $followedCreator->id);
+
+        $response = $this->actingAs($viewer)->get(route('subscriptions.show', ['account' => 'silent_creator_selected']));
+
+        $response->assertOk();
+        $response->assertSee('data-subscriptions-follow-list="true"', false);
+        $response->assertSee('data-subscriptions-selected-account="silent_creator_selected"', false);
+        $response->assertSee('这个账号还没有公开发布的视频', false);
+        $response->assertSee('切换到其他已关注账号，或者先去探索页继续补充订阅内容。', false);
+        $response->assertSee('id="feed-bootstrap"', false);
+        $response->assertSee('id="feed-grid"', false);
+        $response->assertSee('data-feed-grid-max-columns="3"', false);
+    }
+
+    public function test_subscriptions_account_page_switches_between_followed_accounts_and_renders_selected_accounts_videos(): void
     {
         $repository = $this->useShortVideoDatabase();
         $viewer = User::factory()->create([
@@ -383,20 +412,166 @@ final class HomePageTest extends TestCase
             'published_at' => now()->subHours(8),
         ]);
 
-        $response = $this->actingAs($viewer)->get('/subscriptions?account=creator_beta');
+        $response = $this->actingAs($viewer)->get(route('subscriptions.show', ['account' => 'creator_beta']));
 
         $response->assertOk();
-        $response->assertSee('data-subscriptions-follow-tabs="true"', false);
+        $response->assertSee('data-subscriptions-follow-list="true"', false);
         $response->assertSee('data-subscriptions-selected-account="creator_beta"', false);
-        $response->assertSee(route('subscriptions', ['account' => 'creator_alpha']), false);
-        $response->assertSee(route('subscriptions', ['account' => 'creator_beta']), false);
+        $response->assertSee(route('subscriptions.show', ['account' => 'creator_alpha']), false);
+        $response->assertSee(route('subscriptions.show', ['account' => 'creator_beta']), false);
         $response->assertSee('Creator Alpha', false);
         $response->assertSee('Creator Beta', false);
         $response->assertSee('Beta clip one', false);
         $response->assertSee('Beta clip two', false);
         $response->assertDontSee('Alpha clip one', false);
+        $response->assertSee('data-subscriptions-page-nav="true"', false);
         $response->assertSee('id="feed-grid"', false);
         $response->assertSee('id="feed-bootstrap"', false);
+        $response->assertSee('data-feed-grid-max-columns="3"', false);
+    }
+
+    public function test_subscriptions_page_renders_unread_counts_and_new_badges_based_on_view_history(): void
+    {
+        $repository = $this->useShortVideoDatabase();
+        $viewer = User::factory()->create([
+            'username' => 'subscriptions_badge_viewer',
+            'email' => 'subscriptions_badge_viewer@example.com',
+        ]);
+        $creatorAlpha = User::factory()->create([
+            'name' => 'Creator Alpha',
+            'username' => 'creator_alpha_badges',
+            'avatar_url' => 'https://example.com/creator-alpha-badges.jpg',
+        ]);
+        $creatorBeta = User::factory()->create([
+            'name' => 'Creator Beta',
+            'username' => 'creator_beta_badges',
+            'avatar_url' => 'https://example.com/creator-beta-badges.jpg',
+        ]);
+
+        $repository->followUser($viewer->id, $creatorAlpha->id);
+        $repository->followUser($viewer->id, $creatorBeta->id);
+
+        $alphaViewedVideo = Video::query()->create([
+            'origin' => 'manual_upload',
+            'uploader_user_id' => $creatorAlpha->id,
+            'title' => 'Alpha viewed clip',
+            'poster_url' => 'https://example.com/alpha-viewed.jpg',
+            'playback_url' => 'https://example.com/alpha-viewed.mp4',
+            'visibility' => 'public',
+            'status' => 'published',
+            'published_at' => now()->subDays(3),
+        ]);
+        $betaViewedVideo = Video::query()->create([
+            'origin' => 'manual_upload',
+            'uploader_user_id' => $creatorBeta->id,
+            'title' => 'Beta viewed clip',
+            'poster_url' => 'https://example.com/beta-viewed.jpg',
+            'playback_url' => 'https://example.com/beta-viewed.mp4',
+            'visibility' => 'public',
+            'status' => 'published',
+            'published_at' => now()->subDays(2),
+        ]);
+        Video::query()->create([
+            'origin' => 'manual_upload',
+            'uploader_user_id' => $creatorBeta->id,
+            'title' => 'Beta unread clip',
+            'poster_url' => 'https://example.com/beta-unread.jpg',
+            'playback_url' => 'https://example.com/beta-unread.mp4',
+            'visibility' => 'public',
+            'status' => 'published',
+            'published_at' => now()->subHours(6),
+        ]);
+
+        DB::table('video_views')->insert([
+            [
+                'video_id' => $alphaViewedVideo->id,
+                'user_id' => $viewer->id,
+                'session_id' => 'subscriptions_badges_alpha',
+                'view_date' => now()->subDays(2)->toDateString(),
+                'created_at' => now()->subDays(2),
+                'updated_at' => now()->subDays(2),
+            ],
+            [
+                'video_id' => $betaViewedVideo->id,
+                'user_id' => $viewer->id,
+                'session_id' => 'subscriptions_badges_beta',
+                'view_date' => now()->subDay()->toDateString(),
+                'created_at' => now()->subDay(),
+                'updated_at' => now()->subDay(),
+            ],
+        ]);
+
+        $response = $this->actingAs($viewer)->get(route('subscriptions.show', ['account' => 'creator_beta_badges']));
+
+        $response->assertOk();
+        $response->assertSee('Creator Alpha', false);
+        $response->assertSee('Creator Beta', false);
+        $response->assertSee('更新', false);
+        $response->assertDontSee('最近更新', false);
+        $response->assertSee('data-subscriptions-unread-badge="true"', false);
+        $response->assertSee('data-unread-count="1"', false);
+        $response->assertDontSee('已全部读完', false);
+        $response->assertSee('Beta viewed clip', false);
+        $response->assertSee('Beta unread clip', false);
+        $response->assertSee('data-subscriptions-feed-card="true"', false);
+        $response->assertSee('data-feed-new-badge="true"', false);
+        $this->assertSame(1, substr_count($response->getContent(), 'data-feed-new-badge="true"'));
+    }
+
+    public function test_subscriptions_page_prefers_latest_published_author_name_for_followed_account_label(): void
+    {
+        $repository = $this->useShortVideoDatabase();
+        $viewer = User::factory()->create([
+            'username' => 'subscriptions_name_viewer',
+            'email' => 'subscriptions_name_viewer@example.com',
+        ]);
+        $creator = User::factory()->create([
+            'name' => '@tangyuan_269',
+            'username' => 'tangyuan_269',
+            'avatar_url' => 'https://example.com/tangyuan.jpg',
+        ]);
+        [$source] = $repository->syncSources([
+            ['handle' => 'tangyuan_269', 'enabled' => true],
+        ]);
+
+        $repository->followUser($viewer->id, $creator->id);
+
+        DB::table('tweets')->insert([
+            'tweet_id' => 'subscriptions-name-1',
+            'source_id' => $source['id'],
+            'tweet_url' => 'https://x.com/tangyuan_269/status/subscriptions-name-1',
+            'author_handle' => 'tangyuan_269',
+            'author_name' => '芝麻湯圓🍡',
+            'author_avatar_url' => 'https://example.com/tangyuan.jpg',
+            'text' => '昵称应优先展示 author_name',
+            'posted_at' => now()->subDay()->toISOString(),
+            'duration_text' => '0:21',
+            'poster_url' => 'https://example.com/tangyuan-poster.jpg',
+            'status' => 'resolved',
+            'raw_discovery_payload' => '{}',
+            'raw_resolve_payload' => '{}',
+            'ingested_at' => now()->subDay()->toISOString(),
+            'resolved_at' => now()->subDay()->toISOString(),
+        ]);
+
+        Video::query()->create([
+            'origin' => 'x_tweet',
+            'tweet_id' => 'subscriptions-name-1',
+            'source_id' => $source['id'],
+            'uploader_user_id' => $creator->id,
+            'title' => 'Tangyuan clip',
+            'poster_url' => 'https://example.com/tangyuan-poster.jpg',
+            'playback_url' => 'https://example.com/tangyuan.mp4',
+            'visibility' => 'public',
+            'status' => 'published',
+            'published_at' => now()->subDay(),
+        ]);
+
+        $response = $this->actingAs($viewer)->get(route('subscriptions.show', ['account' => 'tangyuan_269']));
+
+        $response->assertOk();
+        $response->assertSee('芝麻湯圓🍡', false);
+        $response->assertDontSee('&#64;tangyuan_269', false);
     }
 
     public function test_authenticated_home_page_hides_viewer_name_and_username(): void

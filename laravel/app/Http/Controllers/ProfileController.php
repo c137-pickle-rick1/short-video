@@ -17,10 +17,14 @@ final class ProfileController extends Controller
         $viewer = $request->user();
 
         $tab = trim((string) $request->query('tab', ''));
+        $panel = trim((string) $request->query('panel', ''));
+        $page = trim((string) $request->query('page', ''));
 
         return redirect()->route('profile.show', array_filter([
             'username' => $viewer->username,
             'tab' => $tab !== '' ? $tab : null,
+            'panel' => $panel !== '' ? $panel : null,
+            'page' => $page !== '' ? $page : null,
         ]));
     }
 
@@ -37,7 +41,9 @@ final class ProfileController extends Controller
         return $pages->renderProfilePage($feedService->getProfilePageViewModel(
             $viewer,
             $profileUser,
-            $request->string('tab')->toString()
+            $request->string('tab')->toString(),
+            $request->string('panel')->toString(),
+            $request->query('page')
         ));
     }
 }

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\Video;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 final class ProfilePageTest extends TestCase
@@ -27,6 +28,22 @@ final class ProfilePageTest extends TestCase
         $response = $this->actingAs($viewer)->get('/me');
 
         $response->assertRedirect(route('profile.show', ['username' => 'profile_tester']));
+    }
+
+    public function test_authenticated_user_redirect_from_me_preserves_panel_and_page_query(): void
+    {
+        $this->useShortVideoDatabase();
+        $viewer = User::factory()->create([
+            'username' => 'profile_tester_redirect',
+        ]);
+
+        $response = $this->actingAs($viewer)->get('/me?panel=history&page=2');
+
+        $response->assertRedirect(route('profile.show', [
+            'username' => 'profile_tester_redirect',
+            'panel' => 'history',
+            'page' => 2,
+        ]));
     }
 
     public function test_authenticated_user_sees_profile_summary_and_follow_stats_on_own_profile_page(): void
@@ -61,10 +78,19 @@ final class ProfilePageTest extends TestCase
         $response->assertSee('data-profile-social-trigger="following"', false);
         $response->assertSee('data-profile-social-trigger="followers"', false);
         $response->assertSee('data-profile-social-modal="true"', false);
+        $response->assertSee('data-profile-dashboard-nav="true"', false);
+        $response->assertSee('data-profile-dashboard-selected-panel="profile"', false);
+        $response->assertSee('data-profile-dashboard-item="profile"', false);
+        $response->assertSee('data-profile-dashboard-item="creator"', false);
+        $response->assertSee('data-profile-dashboard-item="history"', false);
+        $response->assertSee('data-profile-dashboard-item="bookmarks"', false);
+        $response->assertSee('data-profile-dashboard-item="interactions"', false);
+        $response->assertSee('data-profile-dashboard-item="logout"', false);
+        $response->assertSee('data-profile-dashboard-detail="profile"', false);
+        $response->assertDontSee('data-profile-dashboard-mobile-nav="true"', false);
         $response->assertDontSee('关注了', false);
         $response->assertDontSee('粉丝数', false);
-        $response->assertSee('上传视频', false);
-        $response->assertSee('data-profile-video-upload-trigger="true"', false);
+        $response->assertDontSee('data-profile-video-upload-trigger="true"', false);
         $response->assertSee('id="profile-video-upload-dialog"', false);
         $response->assertSee('data-profile-video-upload-input="true"', false);
         $response->assertSee('data-profile-video-upload-title-input="true"', false);
@@ -80,13 +106,8 @@ final class ProfilePageTest extends TestCase
         $response->assertDontSee('data-avatar-dialog-trigger="true"', false);
         $response->assertSee('data-avatar-slot="profile"', false);
         $response->assertSee('data-avatar-slot="nav"', false);
-        $response->assertSee('data-profile-library-tabs="true"', false);
-        $response->assertSee('data-profile-library-tab="published"', false);
-        $response->assertSee('data-profile-library-tab="reviewing"', false);
-        $response->assertSee('data-profile-library-tab="uploading"', false);
-        $response->assertSee('data-profile-library-tab="removed"', false);
-        $response->assertSee('data-profile-library-empty-state="true"', false);
-        $response->assertSee('还没有已发布的视频', false);
+        $response->assertDontSee('data-profile-library-tabs="true"', false);
+        $response->assertDontSee('data-profile-library-empty-state="true"', false);
         $response->assertSee('creator_alpha', false);
         $response->assertSee('fan_alpha', false);
         $response->assertDontSee('搜索用户名', false);
@@ -96,6 +117,26 @@ final class ProfilePageTest extends TestCase
         $response->assertSee('>3<', false);
         $response->assertSee('退出登录', false);
         $response->assertSee('data-author-follow-button="true"', false);
+
+        $content = $response->getContent();
+        self::assertIsString($content);
+        $profilePosition = strpos($content, 'data-profile-dashboard-item="profile"');
+        $creatorPosition = strpos($content, 'data-profile-dashboard-item="creator"');
+        $historyPosition = strpos($content, 'data-profile-dashboard-item="history"');
+        $bookmarksPosition = strpos($content, 'data-profile-dashboard-item="bookmarks"');
+        $interactionsPosition = strpos($content, 'data-profile-dashboard-item="interactions"');
+        $logoutPosition = strpos($content, 'data-profile-dashboard-item="logout"');
+        self::assertNotFalse($profilePosition);
+        self::assertNotFalse($creatorPosition);
+        self::assertNotFalse($historyPosition);
+        self::assertNotFalse($bookmarksPosition);
+        self::assertNotFalse($interactionsPosition);
+        self::assertNotFalse($logoutPosition);
+        self::assertTrue($profilePosition < $creatorPosition);
+        self::assertTrue($creatorPosition < $historyPosition);
+        self::assertTrue($historyPosition < $bookmarksPosition);
+        self::assertTrue($bookmarksPosition < $interactionsPosition);
+        self::assertTrue($interactionsPosition < $logoutPosition);
     }
 
     public function test_authenticated_user_can_switch_profile_library_tabs_and_see_matching_status_items(): void
@@ -131,6 +172,10 @@ final class ProfilePageTest extends TestCase
         ]));
 
         $response->assertOk();
+        $response->assertSee('data-profile-dashboard-detail="creator"', false);
+        $response->assertSee('data-profile-dashboard-item="creator"', false);
+        $response->assertSee('data-active="true"', false);
+        $response->assertSee('data-profile-dashboard-mobile-nav="true"', false);
         $response->assertSee('data-profile-library-selected-tab="uploading"', false);
         $response->assertSee('data-profile-library-selected-count="1"', false);
         $response->assertSee('data-profile-library-item="true"', false);
@@ -195,6 +240,7 @@ final class ProfilePageTest extends TestCase
         ]));
 
         $publishedResponse->assertOk();
+        $publishedResponse->assertSee('data-profile-dashboard-detail="creator"', false);
         $publishedResponse->assertSee('Published Hero', false);
         $publishedResponse->assertSee('data-profile-library-thumbnail="true"', false);
         $publishedResponse->assertSee('data-profile-library-duration="true"', false);
@@ -213,6 +259,7 @@ final class ProfilePageTest extends TestCase
         ]));
 
         $reviewingResponse->assertOk();
+        $reviewingResponse->assertSee('data-profile-dashboard-detail="creator"', false);
         $reviewingResponse->assertSee('Review Pending', false);
         $reviewingResponse->assertSee('data-profile-library-status-tag="true"', false);
         $reviewingResponse->assertSee('审核中', false);
@@ -226,6 +273,7 @@ final class ProfilePageTest extends TestCase
         ]));
 
         $removedResponse->assertOk();
+        $removedResponse->assertSee('data-profile-dashboard-detail="creator"', false);
         $removedResponse->assertSee('Removed Archive', false);
         $removedResponse->assertSee('data-profile-library-actions="true"', false);
         $removedResponse->assertSee('data-profile-library-action="edit"', false);
@@ -233,6 +281,54 @@ final class ProfilePageTest extends TestCase
         $removedResponse->assertSee('data-profile-library-action="delete"', false);
         $removedResponse->assertSee('编辑信息', false);
         $removedResponse->assertSee('重新提交', false);
+    }
+
+    public function test_authenticated_user_can_open_history_panel_inside_profile_dashboard(): void
+    {
+        $repository = $this->useShortVideoDatabase();
+        $viewer = User::factory()->create([
+            'name' => 'History Owner',
+            'username' => 'history_owner',
+        ]);
+        [$source] = $repository->syncSources([
+            ['handle' => 'demo', 'enabled' => true],
+        ]);
+
+        $this->insertResolvedTweet($repository, $source['id'], [
+            'tweetId' => '7788',
+            'tweet' => [
+                'authorHandle' => 'demo',
+                'authorName' => 'Demo Creator',
+                'text' => '嵌入观看记录视频',
+                'postedAt' => now()->subHour()->toISOString(),
+            ],
+        ]);
+
+        $video = Video::query()->firstOrFail();
+
+        DB::table('video_views')->insert([
+            'video_id' => $video->id,
+            'user_id' => $viewer->id,
+            'session_id' => 'profile-history-session',
+            'view_date' => now()->toDateString(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->actingAs($viewer)->get(route('profile.show', [
+            'username' => $viewer->username,
+            'panel' => 'history',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('data-profile-dashboard-mobile-nav="true"', false);
+        $response->assertSee('data-profile-dashboard-detail="history"', false);
+        $response->assertSee('data-profile-dashboard-item="history"', false);
+        $response->assertSee('嵌入观看记录视频', false);
+        $response->assertSee('data-history-record-grid="true"', false);
+        $response->assertSee('data-history-record-item="true"', false);
+        $response->assertSee('data-history-clear-all="true"', false);
+        $response->assertDontSee('data-history-back="true"', false);
     }
 
     public function test_authenticated_user_sees_public_profile_controls_when_opening_another_user_page(): void
@@ -249,7 +345,10 @@ final class ProfilePageTest extends TestCase
 
         $repository->followUser($viewer->id, $profileUser->id);
 
-        $response = $this->actingAs($viewer)->get(route('profile.show', ['username' => $profileUser->username]));
+        $response = $this->actingAs($viewer)->get(route('profile.show', [
+            'username' => $profileUser->username,
+            'panel' => 'history',
+        ]));
 
         $response->assertOk();
         $response->assertSee('Public Creator', false);
@@ -267,6 +366,8 @@ final class ProfilePageTest extends TestCase
         $response->assertDontSee('id="profile-editor-dialog"', false);
         $response->assertDontSee('退出登录', false);
         $response->assertDontSee('data-profile-library-tabs="true"', false);
+        $response->assertDontSee('data-profile-dashboard-nav="true"', false);
+        $response->assertDontSee('data-profile-dashboard-detail="history"', false);
         $response->assertSee('data-profile-social-modal="true"', false);
     }
 

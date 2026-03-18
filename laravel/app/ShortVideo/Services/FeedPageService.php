@@ -7,11 +7,17 @@ use App\Models\Video;
 use App\ShortVideo\Auth\CurrentViewerResolver;
 use App\ShortVideo\Repositories\SocialGraphRepository;
 use App\ShortVideo\Support\FeedConfig;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 final class FeedPageService
 {
+    /**
+     * @var list<string>
+     */
+    private const OWN_PROFILE_PANELS = ['profile', 'creator', 'history', 'bookmarks', 'interactions'];
+
     public function __construct(
         private readonly FeedQueryService $feedQueries,
         private readonly SocialGraphRepository $socialGraph,
@@ -161,7 +167,7 @@ final class FeedPageService
 
         $subscriptionsFollowTabs = $this->buildSubscriptionsFollowTabs($viewer, $selectedAccount);
 
-        if ($subscriptionsFollowTabs['items'] === [] || ! is_array($subscriptionsFollowTabs['selected'])) {
+        if ($subscriptionsFollowTabs['items'] === []) {
             return [
                 'pageTitle' => '订阅 · Lagos Explore Feed',
                 'headerViewer' => $this->mapViewerSummary($viewer),
@@ -179,13 +185,33 @@ final class FeedPageService
             ];
         }
 
+        if (! is_array($subscriptionsFollowTabs['selected'])) {
+            return [
+                'pageTitle' => '订阅 · Lagos Explore Feed',
+                'headerViewer' => $this->mapViewerSummary($viewer),
+                'searchQuery' => null,
+                'page' => [
+                    'eyebrow' => 'Subscriptions',
+                    'title' => '订阅',
+                    'description' => '这里会收拢你已关注创作者的最新更新。',
+                ],
+                'state' => 'selection_required',
+                'feed' => null,
+                'toolbar' => null,
+                'subscriptionsFollowTabs' => $subscriptionsFollowTabs['items'],
+                'selectedSubscriptionsAccount' => null,
+            ];
+        }
+
         $selectedSubscriptionsAccount = $subscriptionsFollowTabs['selected'];
         $selectedFeed = $this->feedQueries->getPublishedFeedForProfile(
             (int) $selectedSubscriptionsAccount['userId'],
             $limit ?? FeedConfig::MAX_FEED_LIMIT
         );
         $renderedCount = count($selectedFeed['items']);
-        $summaryLabel = '@'.$selectedSubscriptionsAccount['username'];
+        $summaryLabel = trim((string) ($selectedSubscriptionsAccount['name'] ?? '')) !== ''
+            ? trim((string) $selectedSubscriptionsAccount['name'])
+            : (string) ($selectedSubscriptionsAccount['username'] ?? '');
 
         return [
             'pageTitle' => $summaryLabel.' · 订阅 · Lagos Explore Feed',
@@ -194,7 +220,7 @@ final class FeedPageService
             'page' => [
                 'eyebrow' => 'Subscriptions',
                 'title' => '订阅',
-                'description' => '上方切换你已关注的账号，下方只展示当前选中账号的公开视频瀑布流。',
+                'description' => '左侧切换你已关注的账号，右侧只展示当前选中账号的公开视频瀑布流。',
             ],
             'state' => 'ready',
             'subscriptionsFollowTabs' => $subscriptionsFollowTabs['items'],
@@ -221,6 +247,7 @@ final class FeedPageService
                 'done' => true,
                 'isEmpty' => $renderedCount === 0,
                 'mode' => FeedConfig::MODE_FOLLOWING,
+                'gridMaxColumns' => 3,
                 'source' => '',
                 'query' => null,
             ],
@@ -340,16 +367,35 @@ final class FeedPageService
     /**
      * @return array<string, mixed>
      */
-    public function getProfilePageViewModel(?User $viewer, User $profileUser, ?string $selectedLibraryTab = null): array
-    {
+    public function getProfilePageViewModel(
+        ?User $viewer,
+        User $profileUser,
+        ?string $selectedLibraryTab = null,
+        ?string $selectedPanel = null,
+        int|string|null $selectedPanelPage = null
+    ): array {
         $isOwnProfile = $viewer?->is($profileUser) === true;
         $profileName = trim((string) ($profileUser->name ?? '')) !== '' ? trim((string) $profileUser->name) : $profileUser->username;
         $followedUserIds = $viewer
             ? $this->socialGraph->getFollowedUserIds($viewer->id, [$profileUser->id])
             : [];
+        $resolvedSelectedPanel = $isOwnProfile
+            ? $this->resolveOwnProfilePanel($selectedPanel, $selectedLibraryTab)
+            : 'profile';
+        $hasExplicitPanelSelection = $isOwnProfile
+            && $this->hasExplicitOwnProfileSelection($selectedPanel, $selectedLibraryTab);
         $socialConnections = $this->buildProfileSocialConnectionsViewModel($viewer, $profileUser);
         $profileVideoLibrary = $isOwnProfile
             ? $this->buildProfileVideoLibraryViewModel($profileUser, $selectedLibraryTab)
+            : null;
+        $embeddedHistory = $isOwnProfile && $resolvedSelectedPanel === 'history'
+            ? $this->buildEmbeddedHistoryPanelViewModel($selectedPanelPage)
+            : null;
+        $embeddedBookmarks = $isOwnProfile && $resolvedSelectedPanel === 'bookmarks'
+            ? $this->buildEmbeddedBookmarksPanelViewModel($selectedPanelPage)
+            : null;
+        $embeddedInteractions = $isOwnProfile && $resolvedSelectedPanel === 'interactions'
+            ? $this->buildEmbeddedInteractionsPanelViewModel($selectedPanelPage)
             : null;
         $publicProfileFeed = ! $isOwnProfile
             ? $this->feedQueries->getPublishedFeedForProfile($profileUser->id, FeedConfig::MAX_FEED_LIMIT)
@@ -382,6 +428,26 @@ final class FeedPageService
                 'followingCount' => (int) ($socialConnections['tabs']['following']['count'] ?? 0),
                 'followerCount' => (int) ($socialConnections['tabs']['followers']['count'] ?? 0),
             ],
+            'selectedPanel' => $resolvedSelectedPanel,
+            'hasExplicitPanelSelection' => $hasExplicitPanelSelection,
+            'panelItems' => $isOwnProfile
+                ? $this->buildOwnProfilePanelItems($profileUser, $profileName, $socialConnections)
+                : [],
+            'profilePanel' => $isOwnProfile
+                ? [
+                    'title' => '个人资料卡片',
+                    'description' => '查看并编辑你的账号资料、关注关系和简介。',
+                ]
+                : null,
+            'creatorCenter' => $isOwnProfile
+                ? [
+                    'title' => '创作者中心',
+                    'description' => '管理上传内容和你的视频状态。',
+                ]
+                : null,
+            'embeddedHistory' => $embeddedHistory,
+            'embeddedBookmarks' => $embeddedBookmarks,
+            'embeddedInteractions' => $embeddedInteractions,
             'followState' => [
                 'creator' => [
                     'userId' => $profileUser->id,
@@ -420,6 +486,127 @@ final class FeedPageService
                 ],
             ] : null,
         ];
+    }
+
+    private function resolveOwnProfilePanel(?string $selectedPanel, ?string $selectedLibraryTab): string
+    {
+        $normalizedPanel = trim((string) ($selectedPanel ?? ''));
+
+        if (in_array($normalizedPanel, self::OWN_PROFILE_PANELS, true)) {
+            return $normalizedPanel;
+        }
+
+        return trim((string) ($selectedLibraryTab ?? '')) !== '' ? 'creator' : 'profile';
+    }
+
+    private function hasExplicitOwnProfileSelection(?string $selectedPanel, ?string $selectedLibraryTab): bool
+    {
+        $normalizedPanel = trim((string) ($selectedPanel ?? ''));
+
+        return in_array($normalizedPanel, self::OWN_PROFILE_PANELS, true)
+            || trim((string) ($selectedLibraryTab ?? '')) !== '';
+    }
+
+    /**
+     * @param  array<string, mixed>  $socialConnections
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildOwnProfilePanelItems(User $profileUser, string $profileName, array $socialConnections): array
+    {
+        return [
+            [
+                'key' => 'profile',
+                'type' => 'profile-card',
+                'label' => '个人资料卡片',
+                'name' => $profileName,
+                'username' => $profileUser->username,
+                'avatarUrl' => ! empty($profileUser->avatar_url) ? (string) ($profileUser->avatar_url) : null,
+                'avatarInitial' => $this->ownProfilePanelInitial($profileName),
+                'followingCount' => (int) ($socialConnections['tabs']['following']['count'] ?? 0),
+                'followerCount' => (int) ($socialConnections['tabs']['followers']['count'] ?? 0),
+            ],
+            [
+                'key' => 'creator',
+                'type' => 'panel',
+                'label' => '创作者中心',
+                'description' => '管理上传内容和视频状态',
+                'iconClass' => 'ph ph-video-camera',
+            ],
+            [
+                'key' => 'history',
+                'type' => 'panel',
+                'label' => '观看记录',
+                'description' => '查看最近浏览过的视频',
+                'iconClass' => 'ph ph-clock-counter-clockwise',
+            ],
+            [
+                'key' => 'bookmarks',
+                'type' => 'panel',
+                'label' => '我的收藏',
+                'description' => '管理保存下来的视频',
+                'iconClass' => 'ph ph-bookmark-simple',
+            ],
+            [
+                'key' => 'interactions',
+                'type' => 'panel',
+                'label' => '我的互动',
+                'description' => '查看点赞和评论记录',
+                'iconClass' => 'ph ph-chat-circle-dots',
+            ],
+            [
+                'key' => 'logout',
+                'type' => 'logout',
+                'label' => '退出登录',
+                'description' => '立即退出当前账号',
+                'iconClass' => 'ph ph-sign-out',
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildEmbeddedHistoryPanelViewModel(int|string|null $page = null): array
+    {
+        $viewModel = $this->getViewerHistoryPageViewModel($page);
+
+        return [
+            'page' => is_array($viewModel['page'] ?? null) ? $viewModel['page'] : [],
+            'history' => is_array($viewModel['history'] ?? null) ? $viewModel['history'] : [],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildEmbeddedBookmarksPanelViewModel(int|string|null $page = null): array
+    {
+        $viewModel = $this->getViewerBookmarksPageViewModel($page);
+
+        return [
+            'page' => is_array($viewModel['page'] ?? null) ? $viewModel['page'] : [],
+            'bookmarks' => is_array($viewModel['bookmarks'] ?? null) ? $viewModel['bookmarks'] : [],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildEmbeddedInteractionsPanelViewModel(int|string|null $page = null): array
+    {
+        $viewModel = $this->getViewerInteractionsPageViewModel($page);
+
+        return [
+            'page' => is_array($viewModel['page'] ?? null) ? $viewModel['page'] : [],
+            'interactions' => is_array($viewModel['interactions'] ?? null) ? $viewModel['interactions'] : [],
+        ];
+    }
+
+    private function ownProfilePanelInitial(string $profileName): string
+    {
+        $label = ltrim(trim($profileName), '@');
+
+        return $label !== '' ? mb_strtoupper(mb_substr($label, 0, 1)) : 'L';
     }
 
     /**
@@ -868,7 +1055,11 @@ final class FeedPageService
      *     username:string,
      *     avatarUrl:?string,
      *     avatarInitial:string,
+     *     latestPublishedAt:?string,
+     *     latestPublishedAtText:string,
      *     publishedVideosCount:int,
+     *     unreadVideosCount:int,
+     *     hasUnread:bool,
      *     active:bool
      *   }>,
      *   selected:?array{
@@ -877,7 +1068,11 @@ final class FeedPageService
      *     username:string,
      *     avatarUrl:?string,
      *     avatarInitial:string,
+     *     latestPublishedAt:?string,
+     *     latestPublishedAtText:string,
      *     publishedVideosCount:int,
+     *     unreadVideosCount:int,
+     *     hasUnread:bool,
      *     active:bool
      *   }
      * }
@@ -896,40 +1091,46 @@ final class FeedPageService
         }
 
         $publishedVideoStatsByUserId = $this->publishedVideoStatsByUserId(
+            $followingUsers->pluck('id')->map(static fn (mixed $id): int => (int) $id)->all(),
+            $viewer->id
+        );
+        $preferredDisplayNamesByUserId = $this->latestPublishedAuthorNamesByUserId(
             $followingUsers->pluck('id')->map(static fn (mixed $id): int => (int) $id)->all()
         );
         $sortedFollowingUsers = $followingUsers
             ->sort(fn (User $left, User $right): int => $this->compareSubscriptionsUsers($left, $right, $publishedVideoStatsByUserId))
             ->values();
         $selectedUsername = $this->normalizeSelectedSubscriptionsAccount($selectedAccount);
-        $selectedUser = $sortedFollowingUsers->first(
-            fn (User $user): bool => $user->username === $selectedUsername
-        );
-
-        if (! $selectedUser instanceof User) {
-            $selectedUser = $sortedFollowingUsers->first(
-                fn (User $user): bool => (int) ($publishedVideoStatsByUserId[$user->id]['publishedVideosCount'] ?? 0) > 0
+        $selectedUser = $selectedUsername === null
+            ? null
+            : $sortedFollowingUsers->first(
+                fn (User $user): bool => mb_strtolower($user->username) === $selectedUsername
             );
-        }
-
-        if (! $selectedUser instanceof User) {
-            $selectedUser = $sortedFollowingUsers->first();
-        }
 
         $selectedUserId = $selectedUser instanceof User ? $selectedUser->id : null;
         $items = $sortedFollowingUsers
-            ->map(function (User $user) use ($publishedVideoStatsByUserId, $selectedUserId): array {
+            ->map(function (User $user) use ($publishedVideoStatsByUserId, $preferredDisplayNamesByUserId, $selectedUserId): array {
                 $stats = $publishedVideoStatsByUserId[$user->id] ?? [
                     'publishedVideosCount' => 0,
+                    'latestPublishedAt' => null,
+                    'unreadVideosCount' => 0,
                 ];
+                $latestPublishedAt = is_string($stats['latestPublishedAt'] ?? null) && trim((string) $stats['latestPublishedAt']) !== ''
+                    ? trim((string) $stats['latestPublishedAt'])
+                    : null;
+                $unreadVideosCount = max(0, (int) ($stats['unreadVideosCount'] ?? 0));
 
                 return [
                     'userId' => $user->id,
-                    'name' => $this->subscriptionsAccountName($user),
+                    'name' => $preferredDisplayNamesByUserId[$user->id] ?? $this->subscriptionsAccountName($user),
                     'username' => $user->username,
                     'avatarUrl' => ! empty($user->avatar_url) ? (string) $user->avatar_url : null,
                     'avatarInitial' => $this->subscriptionsAccountInitial($user),
+                    'latestPublishedAt' => $latestPublishedAt,
+                    'latestPublishedAtText' => $this->formatSubscriptionsLatestPublishedAt($latestPublishedAt),
                     'publishedVideosCount' => (int) ($stats['publishedVideosCount'] ?? 0),
+                    'unreadVideosCount' => $unreadVideosCount,
+                    'hasUnread' => $unreadVideosCount > 0,
                     'active' => $selectedUserId === $user->id,
                 ];
             })
@@ -944,16 +1145,34 @@ final class FeedPageService
 
     /**
      * @param  list<int>  $userIds
-     * @return array<int, array{publishedVideosCount:int,latestPublishedAt:?string}>
+     * @return array<int, array{publishedVideosCount:int,latestPublishedAt:?string,unreadVideosCount:int}>
      */
-    private function publishedVideoStatsByUserId(array $userIds): array
+    private function publishedVideoStatsByUserId(array $userIds, int $viewerUserId): array
     {
         if ($userIds === []) {
             return [];
         }
 
         return Video::query()
-            ->selectRaw('uploader_user_id, COUNT(*) AS published_videos_count, MAX(COALESCE(published_at, created_at)) AS latest_published_at')
+            ->selectRaw(
+                <<<'SQL'
+                    uploader_user_id,
+                    COUNT(*) AS published_videos_count,
+                    MAX(COALESCE(published_at, created_at)) AS latest_published_at,
+                    SUM(
+                        CASE
+                            WHEN EXISTS (
+                                SELECT 1
+                                FROM video_views vv
+                                WHERE vv.video_id = videos.id
+                                  AND vv.user_id = ?
+                            ) THEN 0
+                            ELSE 1
+                        END
+                    ) AS unread_videos_count
+                SQL,
+                [$viewerUserId]
+            )
             ->whereIn('uploader_user_id', $userIds)
             ->where('status', 'published')
             ->where('visibility', 'public')
@@ -968,10 +1187,48 @@ final class FeedPageService
                         'latestPublishedAt' => is_string($video->latest_published_at) && trim($video->latest_published_at) !== ''
                             ? $video->latest_published_at
                             : null,
+                        'unreadVideosCount' => max(0, (int) ($video->unread_videos_count ?? 0)),
                     ],
                 ] : [];
             })
             ->all();
+    }
+
+    /**
+     * @param  list<int>  $userIds
+     * @return array<int, string>
+     */
+    private function latestPublishedAuthorNamesByUserId(array $userIds): array
+    {
+        if ($userIds === []) {
+            return [];
+        }
+
+        $rows = Video::query()
+            ->leftJoin('tweets as t', 't.tweet_id', '=', 'videos.tweet_id')
+            ->whereIn('videos.uploader_user_id', $userIds)
+            ->where('videos.status', 'published')
+            ->where('videos.visibility', 'public')
+            ->whereNotNull('t.author_name')
+            ->selectRaw('videos.uploader_user_id AS user_id, t.author_name AS author_name')
+            ->orderBy('videos.uploader_user_id')
+            ->orderByRaw('COALESCE(videos.published_at, videos.created_at) DESC')
+            ->get();
+
+        $displayNamesByUserId = [];
+
+        foreach ($rows as $row) {
+            $userId = is_numeric((string) ($row->user_id ?? null)) ? (int) $row->user_id : 0;
+            $authorName = is_string($row->author_name ?? null) ? trim((string) $row->author_name) : '';
+
+            if ($userId <= 0 || $authorName === '' || isset($displayNamesByUserId[$userId])) {
+                continue;
+            }
+
+            $displayNamesByUserId[$userId] = $authorName;
+        }
+
+        return $displayNamesByUserId;
     }
 
     /**
@@ -1019,16 +1276,23 @@ final class FeedPageService
         return strcmp($left->username, $right->username);
     }
 
-    private function normalizeSelectedSubscriptionsAccount(?string $selectedAccount): string
+    private function normalizeSelectedSubscriptionsAccount(?string $selectedAccount): ?string
     {
-        return mb_strtolower(ltrim(trim((string) ($selectedAccount ?? '')), '@'));
+        $normalized = mb_strtolower(ltrim(trim((string) ($selectedAccount ?? '')), '@'));
+
+        return $normalized !== '' ? $normalized : null;
     }
 
     private function subscriptionsAccountName(User $user): string
     {
         $resolvedName = trim((string) ($user->name ?? ''));
+        $normalizedResolvedName = mb_strtolower(ltrim($resolvedName, '@'));
 
-        return $resolvedName !== '' ? $resolvedName : '@'.$user->username;
+        if ($resolvedName === '' || $normalizedResolvedName === mb_strtolower($user->username)) {
+            return $user->username;
+        }
+
+        return $resolvedName;
     }
 
     private function subscriptionsAccountInitial(User $user): string
@@ -1036,6 +1300,19 @@ final class FeedPageService
         $label = ltrim($this->subscriptionsAccountName($user), '@');
 
         return $label !== '' ? mb_strtoupper(mb_substr($label, 0, 1)) : 'L';
+    }
+
+    private function formatSubscriptionsLatestPublishedAt(?string $value): string
+    {
+        if ($value === null || trim($value) === '') {
+            return '暂无更新';
+        }
+
+        try {
+            return CarbonImmutable::parse($value)->diffForHumans();
+        } catch (\Throwable) {
+            return '暂无更新';
+        }
     }
 
     private function sortableTimestamp(mixed $value): ?int

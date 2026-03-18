@@ -11,9 +11,13 @@ final class SubscriptionsController extends Controller
 {
     public function __invoke(Request $request, FeedService $feedService, ShortVideoPageViewFactory $pages): View
     {
+        $selectedAccount = $request->route('account');
+
         return $pages->renderSubscriptionsPage(
             $feedService->getSubscriptionsPageViewModel(
-                selectedAccount: $request->query('account')
+                selectedAccount: is_string($selectedAccount) && trim($selectedAccount) !== ''
+                    ? $selectedAccount
+                    : $request->query('account')
             )
         );
     }
