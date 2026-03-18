@@ -2,17 +2,18 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Auth\ManagedAvatarService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\UploadAvatarRequest;
 use App\ShortVideo\Auth\CurrentViewerResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 final class ProfileAvatarController extends Controller
 {
+    public function __construct(private readonly ManagedAvatarService $managedAvatarService) {}
+
     public function store(Request $request, CurrentViewerResolver $currentViewerResolver): JsonResponse
     {
         $viewer = $currentViewerResolver->resolve($request);
@@ -28,64 +29,28 @@ final class ProfileAvatarController extends Controller
             UploadAvatarRequest::rulesDefinition(),
             UploadAvatarRequest::messagesDefinition()
         );
-        $avatar = $payload['avatar'];
-        $disk = Storage::disk('public');
-        $previousAvatarPath = $this->managedAvatarPath($viewer->avatar_url);
-        $extension = strtolower($avatar->guessExtension() ?: $avatar->extension() ?: 'jpg');
-        $normalizedExtension = $extension === 'jpeg' ? 'jpg' : $extension;
-        $filename = Str::uuid()->toString().'.'.$normalizedExtension;
-        $path = $disk->putFileAs('avatars/'.$viewer->id, $avatar, $filename);
+        $pendingAvatar = $this->managedAvatarService->store($viewer, $payload['avatar']);
 
-        if (! is_string($path) || trim($path) === '') {
+        if ($pendingAvatar === null) {
             return response()->json([
                 'message' => '头像上传失败，请稍后重试。',
             ], 500);
         }
 
-        $avatarUrl = $disk->url($path);
-
         try {
             $viewer->forceFill([
-                'avatar_url' => $avatarUrl,
+                'avatar_url' => $pendingAvatar['avatarUrl'],
             ])->save();
         } catch (\Throwable $exception) {
-            $disk->delete($path);
+            $this->managedAvatarService->delete($pendingAvatar['path']);
 
             throw $exception;
         }
 
-        if ($previousAvatarPath !== null && $previousAvatarPath !== $path) {
-            $disk->delete($previousAvatarPath);
-        }
+        $this->managedAvatarService->prunePrevious($pendingAvatar['previousPath'], $pendingAvatar['path']);
 
         return response()->json([
-            'avatarUrl' => $avatarUrl,
+            'avatarUrl' => $pendingAvatar['avatarUrl'],
         ]);
-    }
-
-    private function managedAvatarPath(?string $avatarUrl): ?string
-    {
-        if (! is_string($avatarUrl) || trim($avatarUrl) === '') {
-            return null;
-        }
-
-        $parsedAvatarPath = parse_url($avatarUrl, PHP_URL_PATH);
-        if (! is_string($parsedAvatarPath) || trim($parsedAvatarPath) === '') {
-            return null;
-        }
-
-        $normalizedPath = '/'.ltrim($parsedAvatarPath, '/');
-        if (! Str::startsWith($normalizedPath, '/storage/avatars/')) {
-            return null;
-        }
-
-        $avatarHost = parse_url($avatarUrl, PHP_URL_HOST);
-        $appHost = parse_url((string) config('app.url'), PHP_URL_HOST);
-
-        if (is_string($avatarHost) && $avatarHost !== '' && $avatarHost !== $appHost) {
-            return null;
-        }
-
-        return ltrim(Str::after($normalizedPath, '/storage/'), '/');
     }
 }

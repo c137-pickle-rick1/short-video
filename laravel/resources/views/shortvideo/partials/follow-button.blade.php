@@ -15,9 +15,11 @@
 @if($viewerUserId === null)
     <a
         href="{{ $loginUrl }}"
+        data-auth-modal-trigger="true"
+        data-auth-modal-panel="login"
         class="{{ $buttonBaseClass }} bg-gray-900 text-white hover:bg-gray-800"
     >
-        登录后可关注
+        关注
     </a>
 @elseif(! $canFollowCreator || $creatorUserId === null)
     <button

@@ -20,6 +20,18 @@ final class ShortVideoData
         return is_string($normalized) ? substr($normalized, 0, 120) : '';
     }
 
+    public static function normalizeSearchQuery(?string $query): ?string
+    {
+        $normalized = preg_replace('/\s+/u', ' ', trim((string) ($query ?? '')));
+        if (! is_string($normalized) || $normalized === '') {
+            return null;
+        }
+
+        $normalized = mb_substr($normalized, 0, 120);
+
+        return $normalized !== '' ? $normalized : null;
+    }
+
     public static function parseBoolean(mixed $value): bool
     {
         if (is_bool($value)) {

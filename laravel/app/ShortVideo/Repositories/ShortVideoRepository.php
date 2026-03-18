@@ -46,6 +46,14 @@ final class ShortVideoRepository
         $this->sources->touchSourceLastDiscovered($sourceId);
     }
 
+    public function updateSourceDiscoveryCheckpoint(
+        int $sourceId,
+        ?string $providerUserId = null,
+        ?string $lastSeenTweetId = null
+    ): void {
+        $this->sources->updateDiscoveryCheckpoint($sourceId, $providerUserId, $lastSeenTweetId);
+    }
+
     /**
      * @param  array<string, mixed>  $attributes
      */

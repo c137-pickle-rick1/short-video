@@ -89,6 +89,7 @@ test("CompositeDiscoveryClient falls back when the primary client returns no ite
 test("createDiscoveryClient returns the expected client for each mode", () => {
   const primaryClient = { discoverSource() {} };
   const fallbackClient = { discoverSource() {} };
+  const apiClient = { discoverSource() {} };
 
   assert.equal(
     createDiscoveryClient({
@@ -113,6 +114,25 @@ test("createDiscoveryClient returns the expected client for each mode", () => {
       mode: "hybrid",
       primaryClient,
       fallbackClient
+    }) instanceof CompositeDiscoveryClient
+  );
+
+  assert.equal(
+    createDiscoveryClient({
+      mode: "api",
+      primaryClient,
+      fallbackClient,
+      apiClient
+    }),
+    apiClient
+  );
+
+  assert.ok(
+    createDiscoveryClient({
+      mode: "api_hybrid",
+      primaryClient,
+      fallbackClient,
+      apiClient
     }) instanceof CompositeDiscoveryClient
   );
 });

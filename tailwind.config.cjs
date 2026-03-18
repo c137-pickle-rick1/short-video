@@ -1,6 +1,6 @@
 module.exports = {
   content: [
-    "./laravel/public/**/*.js",
+    "./laravel/resources/js/**/*.js",
     "./laravel/resources/views/**/*.blade.php",
     "./laravel/resources/shortvideo/**/*.css",
     "./laravel/app/**/*.php"

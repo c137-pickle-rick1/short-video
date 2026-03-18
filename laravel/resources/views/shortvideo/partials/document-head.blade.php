@@ -12,4 +12,4 @@
 @if($includePlyrStyles ?? false)
   <link rel="stylesheet" href="/vendor/plyr/plyr.css" />
 @endif
-<link rel="stylesheet" href="/styles.css" />
+@vite('laravel/resources/shortvideo/styles.css')

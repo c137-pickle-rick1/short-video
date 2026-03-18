@@ -15,4 +15,14 @@ class UserPolicy
     {
         return $viewer->is($target);
     }
+
+    public function updateProfile(User $viewer, User $target): bool
+    {
+        return $viewer->is($target);
+    }
+
+    public function uploadVideo(User $viewer, User $target): bool
+    {
+        return $viewer->is($target);
+    }
 }

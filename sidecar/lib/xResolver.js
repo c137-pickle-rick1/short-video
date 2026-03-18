@@ -1,6 +1,7 @@
 export {
   extractMediaGridVideoLinks,
   normalizeResolvedTweet,
+  normalizeSyndicationTweet,
   openAuthBrowser,
   PlaywrightResolver,
   selectTweetFromPayload

@@ -58,12 +58,21 @@ final class SourceRepository
                 'id' => (int) $row->id,
                 'handle' => (string) $row->handle,
                 'userId' => $row->userId !== null ? (int) $row->userId : null,
+                'providerUserId' => $row->providerUserId ? (string) $row->providerUserId : null,
                 'enabled' => (bool) $row->enabled,
                 'lastDiscoveredAt' => $row->lastDiscoveredAt ? (string) $row->lastDiscoveredAt : null,
+                'lastSeenTweetId' => $row->lastSeenTweetId ? (string) $row->lastSeenTweetId : null,
             ],
             $this->db->select(
                 <<<'SQL'
-                    SELECT id, handle, user_id AS userId, enabled, last_discovered_at AS lastDiscoveredAt
+                    SELECT
+                        id,
+                        handle,
+                        user_id AS userId,
+                        provider_user_id AS providerUserId,
+                        enabled,
+                        last_discovered_at AS lastDiscoveredAt,
+                        last_seen_tweet_id AS lastSeenTweetId
                     FROM sources
                     ORDER BY handle ASC
                 SQL
@@ -87,6 +96,28 @@ final class SourceRepository
         $this->db->table('sources')
             ->where('id', $sourceId)
             ->update(['last_discovered_at' => ShortVideoData::nowIso()]);
+    }
+
+    public function updateDiscoveryCheckpoint(
+        int $sourceId,
+        ?string $providerUserId = null,
+        ?string $lastSeenTweetId = null
+    ): void {
+        $updates = [
+            'last_discovered_at' => ShortVideoData::nowIso(),
+        ];
+
+        if (is_string($providerUserId) && trim($providerUserId) !== '') {
+            $updates['provider_user_id'] = trim($providerUserId);
+        }
+
+        if (is_string($lastSeenTweetId) && trim($lastSeenTweetId) !== '') {
+            $updates['last_seen_tweet_id'] = trim($lastSeenTweetId);
+        }
+
+        $this->db->table('sources')
+            ->where('id', $sourceId)
+            ->update($updates);
     }
 
     /**

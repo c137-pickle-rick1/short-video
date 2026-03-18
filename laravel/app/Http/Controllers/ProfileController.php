@@ -6,15 +6,38 @@ use App\Models\User;
 use App\ShortVideo\Services\FeedService;
 use App\ShortVideo\View\ShortVideoPageViewFactory;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 final class ProfileController extends Controller
 {
-    public function __invoke(Request $request, FeedService $feedService, ShortVideoPageViewFactory $pages): View
+    public function current(Request $request): RedirectResponse
     {
         /** @var User $viewer */
         $viewer = $request->user();
 
-        return $pages->renderProfilePage($feedService->getProfilePageViewModel($viewer));
+        $tab = trim((string) $request->query('tab', ''));
+
+        return redirect()->route('profile.show', array_filter([
+            'username' => $viewer->username,
+            'tab' => $tab !== '' ? $tab : null,
+        ]));
+    }
+
+    public function show(
+        Request $request,
+        string $username,
+        FeedService $feedService,
+        ShortVideoPageViewFactory $pages
+    ): View {
+        /** @var User|null $viewer */
+        $viewer = $request->user();
+        $profileUser = User::query()->where('username', $username)->firstOrFail();
+
+        return $pages->renderProfilePage($feedService->getProfilePageViewModel(
+            $viewer,
+            $profileUser,
+            $request->string('tab')->toString()
+        ));
     }
 }

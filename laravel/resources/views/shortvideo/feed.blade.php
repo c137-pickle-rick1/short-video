@@ -4,6 +4,10 @@
 {!! $documentHead !!}
   </head>
   <body class="overflow-x-hidden bg-white text-gray-900 antialiased">
+    @php
+      $subscriptionsFollowTabs = is_array($subscriptionsFollowTabs ?? null) ? $subscriptionsFollowTabs : [];
+      $selectedSubscriptionsAccount = is_array($selectedSubscriptionsAccount ?? null) ? $selectedSubscriptionsAccount : [];
+    @endphp
     <main class="relative z-10">
 {!! $pageHeader !!}
 
@@ -15,11 +19,43 @@
 {!! $mobileNavigation !!}
           <section class="min-w-0 flex-1">
             <div class="grid gap-5 lg:gap-6 xl:gap-7">
-              <header class="rounded-[32px] border border-gray-200 bg-white px-5 py-6 shadow-sm sm:px-6 sm:py-7 lg:px-8 lg:py-8">
-                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-rose-500">{{ $page['eyebrow'] }}</p>
-                <h1 class="mt-3 text-3xl font-semibold tracking-tight text-gray-950 sm:text-4xl">{{ $page['title'] }}</h1>
-                <p class="mt-3 max-w-3xl text-sm leading-7 text-gray-600 sm:text-base">{{ $page['description'] }}</p>
-              </header>
+              @if(!empty($subscriptionsFollowTabs))
+                <section class="overflow-hidden rounded-[32px] border border-gray-200 bg-white shadow-sm">
+                  <nav
+                    aria-label="已关注账号"
+                    data-subscriptions-follow-tabs="true"
+                    data-subscriptions-selected-account="{{ $selectedSubscriptionsAccount['username'] ?? '' }}"
+                    class="detail-mobile-scroller flex gap-3 overflow-x-auto px-[28px] pt-4 sm:gap-4"
+                  >
+                    @foreach($subscriptionsFollowTabs as $tab)
+                      <a
+                        href="{{ route('subscriptions', ['account' => $tab['username']]) }}"
+                        aria-label="{{ $tab['name'] }}"
+                        title="{{ $tab['name'] }}"
+                        data-subscriptions-follow-tab="{{ $tab['username'] }}"
+                        data-active="{{ $tab['active'] ? 'true' : 'false' }}"
+                        class="relative flex w-14 shrink-0 flex-col items-center pb-4 text-center transition sm:w-16"
+                      >
+                        @include('shortvideo.partials.feed.avatar', [
+                          'imageUrl' => $tab['avatarUrl'] ?? null,
+                          'label' => $tab['name'] ?? ('@'.$tab['username']),
+                          'initial' => $tab['avatarInitial'] ?? 'L',
+                          'sizeClass' => 'h-14 w-14 sm:h-16 sm:w-16',
+                          'fallbackClass' => ($tab['active'] ?? false) ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700',
+                          'imageClass' => ($tab['active'] ?? false) ? 'ring-gray-900/10' : '',
+                        ])
+                        <span
+                          @class([
+                            'absolute bottom-0 left-1/2 h-1 w-6 -translate-x-1/2 rounded-full bg-gray-950' => $tab['active'] ?? false,
+                            'hidden' => !($tab['active'] ?? false),
+                          ])
+                          aria-hidden="true"
+                        ></span>
+                      </a>
+                    @endforeach
+                  </nav>
+                </section>
+              @endif
 
               @if(!empty($toolbarMarkup))
 {!! $toolbarMarkup !!}
@@ -28,36 +64,29 @@
               @if(($state ?? null) !== 'ready' && ($state ?? null) !== null)
                 <section class="grid gap-5">
                   @if(($state ?? null) === 'guest')
-                    <article class="rounded-[32px] border border-gray-200 bg-gradient-to-br from-stone-50 via-white to-rose-50/50 px-5 py-6 shadow-sm sm:px-6 sm:py-7 lg:px-8 lg:py-8">
-                      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <h2 class="text-2xl font-semibold tracking-tight text-gray-950">登录后查看订阅更新</h2>
-                          <p class="mt-3 max-w-2xl text-sm leading-7 text-gray-600">
-                            订阅页只展示你关注创作者的最新内容。先登录，再建立自己的长期追更列表。
-                          </p>
-                        </div>
-                        <a
-                          href="{{ $loginUrl }}"
-                          class="inline-flex h-11 items-center justify-center rounded-full bg-gray-900 px-5 text-sm font-semibold text-white transition hover:bg-gray-800"
-                        >
-                          去登录
-                        </a>
-                      </div>
-                    </article>
+                    @include('shortvideo.partials.feed.empty-state-card', [
+                      'iconClass' => 'ph ph-sign-in',
+                      'title' => '登录后查看订阅更新',
+                      'description' => '订阅页只展示你关注创作者的最新内容。先登录，再建立自己的长期追更列表。',
+                      'buttonLabel' => '去登录',
+                      'buttonHref' => $loginUrl,
+                      'buttonAttributes' => [
+                        'data-auth-modal-trigger' => 'true',
+                        'data-auth-modal-panel' => 'login',
+                      ],
+                    ])
                   @elseif(($state ?? null) === 'empty_following')
-                    <article class="rounded-[32px] border border-gray-200 bg-white px-5 py-6 shadow-sm sm:px-6 sm:py-7 lg:px-8 lg:py-8">
-                      <h2 class="text-2xl font-semibold tracking-tight text-gray-950">先关注几个创作者</h2>
-                      <p class="mt-3 max-w-2xl text-sm leading-7 text-gray-600">
-                        你还没有任何订阅关系。下面先按近 7 天活跃度推荐一批创作者，关注后页面会立即刷新为订阅流。
-                      </p>
-                    </article>
+                    @include('shortvideo.partials.feed.empty-state-card', [
+                      'iconClass' => 'ph ph-user-plus',
+                      'title' => '先关注几个创作者',
+                      'description' => '你还没有任何订阅关系。下面先按近 7 天活跃度推荐一批创作者，关注后页面会立即刷新为订阅流。',
+                    ])
                   @elseif(($state ?? null) === 'empty_updates')
-                    <article class="rounded-[32px] border border-dashed border-gray-200 bg-white px-5 py-6 shadow-sm sm:px-6 sm:py-7 lg:px-8 lg:py-8">
-                      <h2 class="text-2xl font-semibold tracking-tight text-gray-950">关注的创作者最近没有更新</h2>
-                      <p class="mt-3 max-w-2xl text-sm leading-7 text-gray-600">
-                        当前订阅关系已经建立，但最近 7 天没有新的公开内容。可以先从推荐列表补充新的候选创作者。
-                      </p>
-                    </article>
+                    @include('shortvideo.partials.feed.empty-state-card', [
+                      'iconClass' => 'ph ph-bell-slash',
+                      'title' => '关注的创作者最近没有更新',
+                      'description' => '当前订阅关系已经建立，但最近 7 天没有新的公开内容。可以先从推荐列表补充新的候选创作者。',
+                    ])
                   @endif
 
                   @if(!empty($recommendations))
@@ -134,19 +163,29 @@
 {!! $detailModalMarkup !!}
     @endif
 
+    @if(!empty($authModalMarkup))
+{!! $authModalMarkup !!}
+    @endif
+
     @if(!empty($feedBootstrapData))
       <script id="feed-bootstrap" type="application/json">{!! $feedBootstrapData !!}</script>
     @endif
+
+    @vite('laravel/resources/js/app/headerLanguageMenu.js')
 
     @if(!empty($feedScriptsEnabled))
       <script src="/vendor/plyr/plyr.min.js"></script>
       <script src="/vendor/colcade/colcade.js"></script>
       <script src="/vendor/hls/hls.min.js"></script>
-      <script type="module" src="/app.js"></script>
+      @vite('laravel/resources/js/app.js')
     @endif
 
     @if(!empty($recommendations))
-      <script type="module" src="/socialGraph.js"></script>
+      @vite('laravel/resources/js/socialGraph.js')
+    @endif
+
+    @if(!empty($authModalMarkup))
+      @vite('laravel/resources/js/authModal.js')
     @endif
   </body>
 </html>

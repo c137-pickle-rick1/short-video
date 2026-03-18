@@ -25,12 +25,14 @@ final class FeedQueryService
         ?string $cursor = null,
         ?string $sourceHandle = '',
         int|string|null $limit = null,
-        string $mode = FeedConfig::MODE_EXPLORE
+        string $mode = FeedConfig::MODE_EXPLORE,
+        ?string $query = null
     ): array {
         $normalizedMode = $this->normalizeMode($mode);
         $normalizedSourceHandle = $normalizedMode === FeedConfig::MODE_EXPLORE
             ? ShortVideoData::normalizeHandle($sourceHandle)
             : '';
+        $normalizedQuery = ShortVideoData::normalizeSearchQuery($query);
         $normalizedLimit = $this->normalizeLimit($limit, FeedConfig::DEFAULT_FEED_LIMIT);
         $viewer = $this->currentViewerResolver->resolve();
 
@@ -43,18 +45,20 @@ final class FeedQueryService
                 'viewer' => null,
                 'headerViewer' => null,
                 'mode' => $normalizedMode,
+                'query' => $normalizedQuery,
                 'requiresAuth' => true,
             ];
         }
 
         $feed = $normalizedMode === FeedConfig::MODE_FEATURED
-            ? $this->getFeaturedFeedPayload($cursor, $normalizedLimit, $viewer?->id)
+            ? $this->getFeaturedFeedPayload($cursor, $normalizedLimit, $viewer?->id, $normalizedQuery)
             : $this->feeds->getFeed(
                 $cursor,
                 $normalizedSourceHandle !== '' ? $normalizedSourceHandle : null,
                 $normalizedLimit,
                 $normalizedMode,
-                $viewer?->id
+                $viewer?->id,
+                $normalizedQuery
             );
 
         $followedAuthorIds = $viewer
@@ -81,31 +85,253 @@ final class FeedQueryService
             ] : null,
             'headerViewer' => $this->mapViewerSummary($viewer),
             'mode' => $normalizedMode,
+            'query' => $normalizedQuery,
             'requiresAuth' => false,
         ];
     }
 
-    public function formatFeedSummary(string $mode, string $sourceHandle, int $renderedCount, bool $done): string
-    {
+    public function formatFeedSummary(
+        string $mode,
+        string $sourceHandle,
+        int $renderedCount,
+        bool $done,
+        ?string $query = null
+    ): string {
         $normalizedMode = $this->normalizeMode($mode);
         $sourceLabel = match ($normalizedMode) {
             FeedConfig::MODE_FEATURED => '精选',
             FeedConfig::MODE_FOLLOWING => '订阅更新',
+            FeedConfig::MODE_HISTORY => '观看记录',
+            FeedConfig::MODE_BOOKMARKS => '我的收藏',
+            FeedConfig::MODE_INTERACTIONS => '我的互动',
             default => $sourceHandle !== '' ? '@'.$sourceHandle : '全部来源',
         };
+        $normalizedQuery = ShortVideoData::normalizeSearchQuery($query);
+        $summaryLabel = $normalizedQuery === null
+            ? $sourceLabel
+            : ($normalizedMode === FeedConfig::MODE_EXPLORE && $sourceHandle === ''
+                ? '搜索 “'.$normalizedQuery.'”'
+                : $sourceLabel.' · 搜索 “'.$normalizedQuery.'”');
 
         if ($renderedCount === 0 && $done) {
-            return "{$sourceLabel} 暂无内容";
+            return "{$summaryLabel} 暂无内容";
         }
 
         if ($renderedCount === 0) {
+            if ($normalizedQuery !== null) {
+                return "{$summaryLabel} 正在加载…";
+            }
+
             return match ($normalizedMode) {
-                FeedConfig::MODE_FEATURED, FeedConfig::MODE_FOLLOWING => "{$sourceLabel} 正在加载…",
-                default => "{$sourceLabel} 正在加载探索内容…",
+                FeedConfig::MODE_FEATURED,
+                FeedConfig::MODE_FOLLOWING,
+                FeedConfig::MODE_HISTORY,
+                FeedConfig::MODE_BOOKMARKS,
+                FeedConfig::MODE_INTERACTIONS => "{$summaryLabel} 正在加载…",
+                default => "{$summaryLabel} 正在加载探索内容…",
             };
         }
 
-        return $sourceLabel.' · 已展示 '.$renderedCount.' 条 · '.($done ? '已加载完毕' : '向下滚动继续加载');
+        return $summaryLabel.' · 已展示 '.$renderedCount.' 条 · '.($done ? '已加载完毕' : '向下滚动继续加载');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getViewerCollectionFeed(string $collection, int|string|null $limit = null): array
+    {
+        $viewer = $this->currentViewerResolver->resolve();
+        $normalizedLimit = $this->normalizeLimit($limit, FeedConfig::HOME_PAGE_FEED_LIMIT);
+
+        if (! $viewer) {
+            return [
+                'items' => [],
+                'nextCursor' => null,
+                'limit' => $normalizedLimit,
+                'viewer' => null,
+                'headerViewer' => null,
+                'collection' => $collection,
+                'requiresAuth' => true,
+            ];
+        }
+
+        $feedItems = $this->feeds->getViewerCollectionFeed($viewer->id, $collection, $normalizedLimit);
+        $followedAuthorIds = $this->socialGraph->getFollowedUserIds(
+            $viewer->id,
+            array_map(
+                static fn (array $item): mixed => $item['authorUserId'] ?? null,
+                $feedItems
+            )
+        );
+
+        return [
+            'items' => array_map(
+                fn (array $item) => $this->mapFeedItemForPresentation($item, $viewer->id, $followedAuthorIds),
+                $feedItems
+            ),
+            'nextCursor' => null,
+            'limit' => $normalizedLimit,
+            'viewer' => [
+                'id' => $viewer->id,
+                'username' => $viewer->username,
+            ],
+            'headerViewer' => $this->mapViewerSummary($viewer),
+            'collection' => $collection,
+            'requiresAuth' => false,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getPublishedFeedForProfile(int $profileUserId, int|string|null $limit = null): array
+    {
+        $viewer = $this->currentViewerResolver->resolve();
+        $normalizedLimit = $this->normalizeLimit($limit, FeedConfig::MAX_FEED_LIMIT);
+        $feedItems = $this->feeds->getPublishedFeedForAuthor($profileUserId, $normalizedLimit, $viewer?->id);
+        $followedAuthorIds = $viewer
+            ? $this->socialGraph->getFollowedUserIds(
+                $viewer->id,
+                array_map(
+                    static fn (array $item): mixed => $item['authorUserId'] ?? null,
+                    $feedItems
+                )
+            )
+            : [];
+
+        return [
+            'items' => array_map(
+                fn (array $item) => $this->mapFeedItemForPresentation($item, $viewer?->id, $followedAuthorIds),
+                $feedItems
+            ),
+            'nextCursor' => null,
+            'limit' => $normalizedLimit,
+            'viewer' => $viewer ? [
+                'id' => $viewer->id,
+                'username' => $viewer->username,
+            ] : null,
+            'headerViewer' => $this->mapViewerSummary($viewer),
+            'mode' => FeedConfig::MODE_EXPLORE,
+            'sourceHandle' => '',
+            'query' => null,
+            'requiresAuth' => false,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function paginateViewerCollectionFeed(
+        string $collection,
+        int|string|null $page = null,
+        int|string|null $perPage = null
+    ): array {
+        $viewer = $this->currentViewerResolver->resolve();
+        $normalizedPage = $this->normalizePage($page);
+        $normalizedPerPage = $this->normalizeLimit($perPage, FeedConfig::MAX_FEED_LIMIT);
+
+        if (! $viewer) {
+            return [
+                'items' => [],
+                'page' => $normalizedPage,
+                'perPage' => $normalizedPerPage,
+                'lastPage' => 1,
+                'total' => 0,
+                'viewer' => null,
+                'headerViewer' => null,
+                'collection' => $collection,
+                'requiresAuth' => true,
+            ];
+        }
+
+        $pageResult = $this->feeds->paginateViewerCollectionFeed(
+            $viewer->id,
+            $collection,
+            $normalizedPage,
+            $normalizedPerPage
+        );
+        $followedAuthorIds = $this->socialGraph->getFollowedUserIds(
+            $viewer->id,
+            array_map(
+                static fn (array $item): mixed => $item['authorUserId'] ?? null,
+                $pageResult['items']
+            )
+        );
+
+        return [
+            'items' => array_map(
+                fn (array $item) => $this->mapFeedItemForPresentation($item, $viewer->id, $followedAuthorIds),
+                $pageResult['items']
+            ),
+            'page' => $pageResult['page'],
+            'perPage' => $pageResult['perPage'],
+            'lastPage' => $pageResult['lastPage'],
+            'total' => $pageResult['total'],
+            'viewer' => [
+                'id' => $viewer->id,
+                'username' => $viewer->username,
+            ],
+            'headerViewer' => $this->mapViewerSummary($viewer),
+            'collection' => $collection,
+            'requiresAuth' => false,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function paginateViewerInteractionFeed(
+        int|string|null $page = null,
+        int|string|null $perPage = null
+    ): array {
+        $viewer = $this->currentViewerResolver->resolve();
+        $normalizedPage = $this->normalizePage($page);
+        $normalizedPerPage = $this->normalizeLimit($perPage, FeedConfig::MAX_FEED_LIMIT);
+
+        if (! $viewer) {
+            return [
+                'items' => [],
+                'page' => $normalizedPage,
+                'perPage' => $normalizedPerPage,
+                'lastPage' => 1,
+                'total' => 0,
+                'viewer' => null,
+                'headerViewer' => null,
+                'collection' => FeedConfig::MODE_INTERACTIONS,
+                'requiresAuth' => true,
+            ];
+        }
+
+        $pageResult = $this->feeds->paginateViewerInteractions(
+            $viewer->id,
+            $normalizedPage,
+            $normalizedPerPage
+        );
+        $followedAuthorIds = $this->socialGraph->getFollowedUserIds(
+            $viewer->id,
+            array_map(
+                static fn (array $item): mixed => $item['authorUserId'] ?? null,
+                $pageResult['items']
+            )
+        );
+
+        return [
+            'items' => array_map(
+                fn (array $item) => $this->mapInteractionItemForPresentation($item, $viewer->id, $followedAuthorIds),
+                $pageResult['items']
+            ),
+            'page' => $pageResult['page'],
+            'perPage' => $pageResult['perPage'],
+            'lastPage' => $pageResult['lastPage'],
+            'total' => $pageResult['total'],
+            'viewer' => [
+                'id' => $viewer->id,
+                'username' => $viewer->username,
+            ],
+            'headerViewer' => $this->mapViewerSummary($viewer),
+            'collection' => FeedConfig::MODE_INTERACTIONS,
+            'requiresAuth' => false,
+        ];
     }
 
     /**
@@ -120,6 +346,9 @@ final class FeedQueryService
         $item['videoUrl'] = ! empty($item['tweetId'])
             ? '/api/media/'.$item['tweetId']
             : (! empty($item['videoUrl']) ? (string) $item['videoUrl'] : null);
+        $item['collectedAt'] = isset($item['sortValue']) && is_string($item['sortValue']) && trim($item['sortValue']) !== ''
+            ? trim($item['sortValue'])
+            : null;
         $item['authorUserId'] = $authorUserId;
         $item['viewerUserId'] = $viewerUserId;
         $item['canFollowAuthor'] = $viewerUserId !== null && $authorUserId !== null && $viewerUserId !== $authorUserId;
@@ -138,13 +367,40 @@ final class FeedQueryService
     }
 
     /**
+     * @param  array<string, mixed>  $item
+     * @param  list<int>  $followedAuthorIds
      * @return array<string, mixed>
      */
-    private function getFeaturedFeedPayload(?string $cursor, int $limit, ?int $viewerUserId): array
+    private function mapInteractionItemForPresentation(array $item, ?int $viewerUserId, array $followedAuthorIds): array
+    {
+        $resolvedItem = $this->mapFeedItemForPresentation($item, $viewerUserId, $followedAuthorIds);
+        $resolvedItem['interactionType'] = (string) ($item['interactionType'] ?? '');
+        $resolvedItem['interactionAt'] = isset($item['interactionAt']) && is_string($item['interactionAt']) && trim($item['interactionAt']) !== ''
+            ? trim($item['interactionAt'])
+            : null;
+        $resolvedItem['commentId'] = is_numeric((string) ($item['commentId'] ?? null)) ? (int) $item['commentId'] : null;
+        $resolvedItem['commentBody'] = isset($item['commentBody']) && is_string($item['commentBody'])
+            ? trim($item['commentBody'])
+            : null;
+        $resolvedItem['parentCommentId'] = is_numeric((string) ($item['parentCommentId'] ?? null)) ? (int) $item['parentCommentId'] : null;
+        $resolvedItem['parentAuthorName'] = isset($item['parentAuthorName']) && is_string($item['parentAuthorName'])
+            ? trim($item['parentAuthorName'])
+            : null;
+        $resolvedItem['parentAuthorUsername'] = isset($item['parentAuthorUsername']) && is_string($item['parentAuthorUsername'])
+            ? trim($item['parentAuthorUsername'])
+            : null;
+
+        return $resolvedItem;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function getFeaturedFeedPayload(?string $cursor, int $limit, ?int $viewerUserId, ?string $query = null): array
     {
         $candidates = array_map(
             fn (array $item): array => $this->scoreFeaturedCandidate($item),
-            $this->feeds->getLatestPublicFeedCandidates(FeedConfig::FEATURED_CANDIDATE_LIMIT, $viewerUserId)
+            $this->feeds->getLatestPublicFeedCandidates(FeedConfig::FEATURED_CANDIDATE_LIMIT, $viewerUserId, $query)
         );
 
         usort($candidates, fn (array $left, array $right): int => $this->compareFeaturedItems($left, $right));
@@ -272,11 +528,21 @@ final class FeedQueryService
         return max(1, min(FeedConfig::MAX_FEED_LIMIT, $numericLimit));
     }
 
+    private function normalizePage(int|string|null $page): int
+    {
+        $numericPage = is_numeric((string) $page) ? (int) $page : 1;
+
+        return max(1, $numericPage);
+    }
+
     private function normalizeMode(?string $mode): string
     {
         return match ($mode) {
             FeedConfig::MODE_FEATURED => FeedConfig::MODE_FEATURED,
             FeedConfig::MODE_FOLLOWING => FeedConfig::MODE_FOLLOWING,
+            FeedConfig::MODE_HISTORY => FeedConfig::MODE_HISTORY,
+            FeedConfig::MODE_BOOKMARKS => FeedConfig::MODE_BOOKMARKS,
+            FeedConfig::MODE_INTERACTIONS => FeedConfig::MODE_INTERACTIONS,
             default => FeedConfig::MODE_EXPLORE,
         };
     }

@@ -40,8 +40,13 @@ final class CrawlService
         $runId = $this->repository->createCrawlRun('discovery', (int) $source['id']);
 
         try {
-            $result = $this->sidecarClient->discoverSource((string) $source['handle']);
+            $result = $this->sidecarClient->discoverSource(
+                (string) $source['handle'],
+                isset($source['providerUserId']) ? (string) $source['providerUserId'] : null,
+                isset($source['lastSeenTweetId']) ? (string) $source['lastSeenTweetId'] : null
+            );
             $items = is_array($result['items'] ?? null) ? $result['items'] : [];
+            $rawPayload = is_array($result['rawPayload'] ?? null) ? $result['rawPayload'] : [];
             $inserted = 0;
 
             foreach ($items as $item) {
@@ -62,7 +67,11 @@ final class CrawlService
                 }
             }
 
-            $this->repository->touchSourceLastDiscovered((int) $source['id']);
+            $this->repository->updateSourceDiscoveryCheckpoint(
+                (int) $source['id'],
+                isset($rawPayload['userId']) ? (string) $rawPayload['userId'] : null,
+                isset($rawPayload['latestTweetId']) ? (string) $rawPayload['latestTweetId'] : null
+            );
             $this->repository->finishCrawlRun($runId, [
                 'status' => 'success',
                 'itemsSeen' => count($items),
@@ -167,7 +176,7 @@ final class CrawlService
         $finalStatus = 'success';
 
         try {
-            foreach (array_chunk($tweets, 10) as $tweetChunk) {
+            foreach (array_chunk($tweets, 20) as $tweetChunk) {
                 $payload = $this->sidecarClient->resolveTweets($tweetChunk);
                 $results = is_array($payload['results'] ?? null) ? $payload['results'] : [];
 

@@ -13,9 +13,9 @@ export class CompositeDiscoveryClient {
     this.logger = logger;
   }
 
-  async discoverSource(handle) {
+  async discoverSource(handle, options = {}) {
     try {
-      const result = await this.primaryClient.discoverSource(handle);
+      const result = await this.primaryClient.discoverSource(handle, options);
       if (Array.isArray(result?.items) && result.items.length > 0) {
         return result;
       }
@@ -30,7 +30,7 @@ export class CompositeDiscoveryClient {
       );
     }
 
-    return this.fallbackClient.discoverSource(handle);
+    return this.fallbackClient.discoverSource(handle, options);
   }
 }
 
@@ -38,6 +38,7 @@ export function createDiscoveryClient({
   mode = "hybrid",
   primaryClient,
   fallbackClient,
+  apiClient = null,
   logger = console
 } = {}) {
   if (mode === "browser") {
@@ -48,9 +49,29 @@ export function createDiscoveryClient({
     return primaryClient;
   }
 
+  if (mode === "api") {
+    if (typeof apiClient?.discoverSource !== "function") {
+      throw new TypeError("API discovery mode requires an apiClient");
+    }
+
+    return apiClient;
+  }
+
   if (mode === "hybrid") {
     return new CompositeDiscoveryClient({
       primaryClient,
+      fallbackClient,
+      logger
+    });
+  }
+
+  if (mode === "api_hybrid") {
+    if (typeof apiClient?.discoverSource !== "function") {
+      throw new TypeError("API hybrid discovery mode requires an apiClient");
+    }
+
+    return new CompositeDiscoveryClient({
+      primaryClient: apiClient,
       fallbackClient,
       logger
     });

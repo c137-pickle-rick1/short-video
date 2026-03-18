@@ -3,41 +3,41 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 final class LoginPageTest extends TestCase
 {
-    public function test_login_page_renders_login_form(): void
+    public function test_login_page_renders_auth_modal_with_email_login_form(): void
     {
         $response = $this->get('/login');
 
         $response->assertOk();
         $response->assertSee('登录', false);
-        $response->assertSee('用户名 / 邮箱 / 手机号', false);
+        $response->assertSee('注册', false);
+        $response->assertSee('忘记密码', false);
+        $response->assertSee('data-auth-modal="true"', false);
+        $response->assertSee('name="email"', false);
         $response->assertSee('密码', false);
-        $response->assertSee('支持用户名、邮箱或手机号', false);
-        $response->assertSee('name="login"', false);
+        $response->assertSee('登录使用邮箱和密码', false);
         $response->assertSee('name="password"', false);
         $response->assertSee('method="POST"', false);
+        $response->assertDontSee('用户名 / 邮箱 / 手机号', false);
         $response->assertDontSee('Google', false);
         $response->assertDontSee('Apple', false);
     }
 
-    #[DataProvider('loginIdentifierProvider')]
-    public function test_user_can_login_with_supported_identifiers(string $identifier): void
+    public function test_user_can_login_with_email(): void
     {
         $this->useShortVideoDatabase();
         $user = User::factory()->create([
             'name' => 'Lagos Tester',
             'username' => 'lagos_login',
             'email' => 'lagos@example.com',
-            'phone' => '13800138000',
             'password' => 'secret-pass',
         ]);
 
         $response = $this->from('/login')->post('/login', [
-            'login' => $identifier,
+            'email' => 'lagos@example.com',
             'password' => 'secret-pass',
         ]);
 
@@ -46,7 +46,7 @@ final class LoginPageTest extends TestCase
         $this->assertNotNull($user->fresh()?->last_login_at);
     }
 
-    public function test_login_rejects_invalid_credentials_and_preserves_identifier(): void
+    public function test_login_rejects_invalid_credentials_and_preserves_email(): void
     {
         $this->useShortVideoDatabase();
         User::factory()->create([
@@ -56,13 +56,13 @@ final class LoginPageTest extends TestCase
         ]);
 
         $response = $this->from('/login')->post('/login', [
-            'login' => 'lagos_login',
+            'email' => 'lagos@example.com',
             'password' => 'wrong-pass',
         ]);
 
         $response->assertRedirect('/login');
         $response->assertSessionHasErrors(['auth']);
-        $response->assertSessionHasInput('login', 'lagos_login');
+        $response->assertSessionHasInput('email', 'lagos@example.com');
         $this->assertGuest();
     }
 
@@ -76,17 +76,5 @@ final class LoginPageTest extends TestCase
         $response->assertRedirect('/login');
         $response->assertSessionHas('status', '你已退出登录。');
         $this->assertGuest();
-    }
-
-    /**
-     * @return array<int, array{0:string}>
-     */
-    public static function loginIdentifierProvider(): array
-    {
-        return [
-            ['lagos_login'],
-            ['lagos@example.com'],
-            ['13800138000'],
-        ];
     }
 }

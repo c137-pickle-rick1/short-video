@@ -10,9 +10,17 @@ final class FeedConfig
 
     public const MODE_FOLLOWING = 'following';
 
+    public const MODE_HISTORY = 'history';
+
+    public const MODE_BOOKMARKS = 'bookmarks';
+
+    public const MODE_INTERACTIONS = 'interactions';
+
     public const DEFAULT_FEED_LIMIT = 12;
 
     public const MAX_FEED_LIMIT = 24;
+
+    public const VIEWER_LIBRARY_PAGE_LIMIT = 12;
 
     public const FEATURED_CANDIDATE_LIMIT = 1000;
 

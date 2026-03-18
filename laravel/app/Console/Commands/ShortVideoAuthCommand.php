@@ -17,9 +17,16 @@ final class ShortVideoAuthCommand extends Command
             (string) config('shortvideo.sidecar.node_binary'),
             (string) config('shortvideo.sidecar.cli_path'),
             'open-auth-browser',
-            '--browser-profile-dir',
-            (string) config('shortvideo.browser_profile_dir'),
         ];
+
+        $cdpUrl = trim((string) config('shortvideo.browser_cdp_url'));
+        if ($cdpUrl !== '') {
+            $command[] = '--cdp-url';
+            $command[] = $cdpUrl;
+        } else {
+            $command[] = '--browser-profile-dir';
+            $command[] = (string) config('shortvideo.browser_profile_dir');
+        }
 
         $storageStatePath = (string) config('shortvideo.storage_state_path');
         if ($storageStatePath !== '') {

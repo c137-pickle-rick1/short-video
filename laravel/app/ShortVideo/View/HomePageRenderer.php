@@ -26,9 +26,13 @@ final class HomePageRenderer
     /**
      * @param  array{id?:int,name?:string,username:string,avatarUrl?:string|null}|null  $viewer
      */
-    public function renderPageHeader(string $loginUrl, ?array $viewer = null, ?string $logoutUrl = null): string
-    {
-        return $this->shellComponents->renderPageHeader($loginUrl, $viewer, $logoutUrl);
+    public function renderPageHeader(
+        string $searchUrl,
+        ?array $viewer = null,
+        ?string $logoutUrl = null,
+        ?string $searchQuery = null
+    ): string {
+        return $this->shellComponents->renderPageHeader($searchUrl, $viewer, $logoutUrl, $searchQuery);
     }
 
     /**
@@ -44,7 +48,10 @@ final class HomePageRenderer
      */
     public function renderMobileNavigation(string $activePage = 'explore', ?array $viewer = null): string
     {
-        return $this->shellComponents->renderMobileNavigation($this->navigationItems($activePage, $viewer));
+        return $this->shellComponents->renderMobileNavigation(array_values(array_filter(
+            $this->navigationItems($activePage, $viewer),
+            static fn (array $item): bool => ($item['mobileHidden'] ?? false) !== true
+        )));
     }
 
     public function renderFeedToolbar(
@@ -52,22 +59,35 @@ final class HomePageRenderer
         string $activeSourceHandle,
         int $renderedCount,
         bool $done,
-        bool $showSourceFilter = true
+        bool $showSourceFilter = true,
+        ?string $searchQuery = null,
+        ?string $summaryText = null,
+        ?string $statusText = null
     ): string {
-        $feedSummaryText = $this->formatFeedSummary($mode, $activeSourceHandle, $renderedCount, $done);
-        $feedStatusText = $renderedCount === 0
-            ? match ($mode) {
-                'featured' => '等待精选内容进入列表',
-                'following' => '等待订阅更新进入列表',
-                default => '等待探索内容进入列表',
-            }
-        : ($done ? '当前结果已全部加载' : '向下滚动继续扩展列表');
+        $normalizedSearchQuery = trim((string) ($searchQuery ?? ''));
+        $feedSummaryText = $summaryText ?? $this->formatFeedSummary(
+            $mode,
+            $activeSourceHandle,
+            $renderedCount,
+            $done,
+            $normalizedSearchQuery !== '' ? $normalizedSearchQuery : null
+        );
+        $feedStatusText = $statusText ?? ($normalizedSearchQuery !== ''
+            ? ($renderedCount === 0 ? '等待搜索结果进入列表' : ($done ? '搜索结果已全部加载' : '向下滚动继续扩展搜索结果'))
+            : ($renderedCount === 0
+                ? match ($mode) {
+                    'featured' => '等待精选内容进入列表',
+                    'following' => '等待订阅更新进入列表',
+                    default => '等待探索内容进入列表',
+                }
+                : ($done ? '当前结果已全部加载' : '向下滚动继续扩展列表')));
 
         return $this->renderView('shortvideo.partials.feed.toolbar', [
             'feedSummaryText' => $feedSummaryText,
             'feedStatusText' => $feedStatusText,
             'activeSourceHandle' => $activeSourceHandle,
             'showSourceFilter' => $showSourceFilter,
+            'searchQuery' => $normalizedSearchQuery,
         ]);
     }
 
@@ -80,10 +100,20 @@ final class HomePageRenderer
         $items = is_array($feed['items'] ?? null) ? $feed['items'] : [];
         $isEmpty = ! empty($feed['isEmpty']);
         $emptyState = is_array($viewModel['emptyState'] ?? null) ? $viewModel['emptyState'] : [];
+        $emptyStateTitle = (string) ($emptyState['title'] ?? '还没有可展示的视频');
+        $emptyStateDescription = (string) (($emptyState['description'] ?? null) ?? ($emptyState['body'] ?? '先在 <code>config/sources.json</code> 启用来源并运行抓取。首页布局已经准备好，一旦有数据就会按瀑布流方式展示出来。'));
+        $emptyStateIconClass = (string) ($emptyState['iconClass'] ?? 'ph ph-magnifying-glass');
+        $emptyStateButtonLabel = isset($emptyState['buttonLabel']) ? (string) $emptyState['buttonLabel'] : null;
+        $emptyStateButtonHref = isset($emptyState['buttonHref']) ? (string) $emptyState['buttonHref'] : null;
+        $emptyStateButtonAttributes = is_array($emptyState['buttonAttributes'] ?? null) ? $emptyState['buttonAttributes'] : [];
         $itemsMarkup = $isEmpty
             ? $this->renderFeedEmptyState(
-                (string) ($emptyState['title'] ?? '还没有可展示的视频'),
-                (string) ($emptyState['body'] ?? '先在 <code>config/sources.json</code> 启用来源并运行抓取。首页布局已经准备好，一旦有数据就会按瀑布流方式展示出来。')
+                title: $emptyStateTitle,
+                description: $emptyStateDescription,
+                iconClass: $emptyStateIconClass,
+                buttonLabel: $emptyStateButtonLabel,
+                buttonHref: $emptyStateButtonHref,
+                buttonAttributes: $emptyStateButtonAttributes
             )
             : implode('', array_map(fn (array $item) => $this->renderFeedItem($item), $items));
 
@@ -93,16 +123,22 @@ final class HomePageRenderer
         ]);
     }
 
-    public function renderFeedLoadingIndicator(): string
-    {
-        return $this->renderView('shortvideo.partials.feed.loading-indicator');
-    }
-
     public function renderFeedEmptyState(
         string $title = '还没有可展示的视频',
-        string $body = '先在 <code>config/sources.json</code> 启用来源并运行抓取。首页布局已经准备好，一旦有数据就会按瀑布流方式展示出来。'
+        string $description = '先在 <code>config/sources.json</code> 启用来源并运行抓取。首页布局已经准备好，一旦有数据就会按瀑布流方式展示出来。',
+        string $iconClass = 'ph ph-magnifying-glass',
+        ?string $buttonLabel = null,
+        ?string $buttonHref = null,
+        array $buttonAttributes = []
     ): string {
-        return $this->components->renderEmptyStateCard(title: $title, body: $body);
+        return $this->components->renderEmptyStateCard(
+            title: $title,
+            description: $description,
+            iconClass: $iconClass,
+            buttonLabel: $buttonLabel,
+            buttonHref: $buttonHref,
+            buttonAttributes: $buttonAttributes
+        );
     }
 
     /**
@@ -110,22 +146,135 @@ final class HomePageRenderer
      */
     public function renderFeedItem(array $tweet): string
     {
+        return $this->renderFeedCard($tweet);
+    }
+
+    /**
+     * @param  array<string, mixed>  $tweet
+     */
+    public function renderHistoryFeedItem(array $tweet, string $deleteUrl): string
+    {
+        return $this->renderLibraryFeedItem(
+            $tweet,
+            $this->renderView('shortvideo.partials.history.delete-button', [
+                'deleteUrl' => $deleteUrl,
+            ]),
+            [
+                'data-history-record-item' => 'true',
+                'data-history-video-id' => isset($tweet['videoId']) ? (string) $tweet['videoId'] : '',
+            ]
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $tweet
+     */
+    public function renderBookmarksFeedItem(array $tweet, string $removeUrl): string
+    {
+        return $this->renderLibraryFeedItem(
+            $tweet,
+            $this->renderView('shortvideo.partials.bookmarks/remove-button', [
+                'removeUrl' => $removeUrl,
+            ]),
+            [
+                'data-bookmark-record-item' => 'true',
+                'data-bookmark-video-id' => isset($tweet['videoId']) ? (string) $tweet['videoId'] : '',
+            ]
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $tweet
+     */
+    public function renderInteractionListItem(array $tweet, string $actionUrl): string
+    {
+        $authorHandle = (string) ($tweet['authorHandle'] ?? 'unknown');
+        $actionType = (string) ($tweet['interactionType'] ?? '');
+        $videoTitle = $this->getDisplayText($tweet);
+        $previewMarkup = $this->components->renderFeedMediaPreview(
+            $tweet,
+            'aspect-video rounded-2xl',
+            $this->formatVideoDurationText((string) ($tweet['durationText'] ?? '')),
+            $authorHandle
+        );
+
+        return $this->renderView('shortvideo.partials.interactions.item', [
+            'previewMarkup' => $previewMarkup,
+            'interactionLabel' => $this->resolveInteractionLabel($tweet),
+            'interactionIconClass' => $actionType === 'comment' ? 'ph ph-chat-circle-dots' : 'ph ph-heart-straight',
+            'interactionAtText' => $this->formatFeedDate($tweet['interactionAt'] ?? null),
+            'videoTitle' => $videoTitle,
+            'authorName' => isset($tweet['authorName']) && trim((string) ($tweet['authorName'] ?? '')) !== ''
+                ? trim((string) $tweet['authorName'])
+                : '@'.$authorHandle,
+            'authorHandle' => $authorHandle,
+            'commentBody' => $actionType === 'comment'
+                ? trim((string) ($tweet['commentBody'] ?? ''))
+                : '',
+            'actionLabel' => $actionType === 'comment' ? '删除评论' : '取消点赞',
+            'actionUrl' => $actionUrl,
+            'actionLoadingLabel' => $actionType === 'comment' ? '删除中...' : '取消中...',
+            'itemAttributes' => [
+                'data-interaction-item' => 'true',
+                'data-interaction-type' => $actionType,
+                'data-interaction-video-id' => isset($tweet['videoId']) ? (string) $tweet['videoId'] : '',
+                'data-interaction-comment-id' => isset($tweet['commentId']) && is_numeric((string) $tweet['commentId'])
+                    ? (string) ((int) $tweet['commentId'])
+                    : '',
+            ],
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $tweet
+     * @param  array<string, mixed>  $rootAttributes
+     */
+    private function renderLibraryFeedItem(array $tweet, string $overlayMarkup, array $rootAttributes): string
+    {
+        return $this->renderFeedCard(
+            $tweet,
+            interactive: false,
+            useStaticPreview: true,
+            postedAtText: $this->formatFeedDate($tweet['postedAt'] ?? null),
+            frameClassOverride: 'aspect-video',
+            titleLineClamp: 1,
+            overlayMarkup: $overlayMarkup,
+            rootAttributes: $rootAttributes,
+            cardClass: 'h-full'
+        );
+    }
+
+    private function renderFeedCard(
+        array $tweet,
+        bool $interactive = true,
+        bool $useStaticPreview = false,
+        ?string $postedAtText = null,
+        ?string $frameClassOverride = null,
+        int $titleLineClamp = 2,
+        ?string $overlayMarkup = null,
+        array $rootAttributes = [],
+        string $cardClass = ''
+    ): string {
         $displayText = $this->getDisplayText($tweet);
         $authorName = isset($tweet['authorName']) && $tweet['authorName'] !== null
             ? (string) $tweet['authorName']
             : '@'.($tweet['authorHandle'] ?? 'unknown');
         $authorHandle = (string) ($tweet['authorHandle'] ?? 'unknown');
+        $authorUsername = isset($tweet['authorUsername']) ? trim((string) $tweet['authorUsername']) : '';
         $authorInitial = $this->getAuthorInitial($authorName);
-        $frameClass = $this->getMediaFrameClass($tweet);
+        $frameClass = $frameClassOverride ?? $this->getMediaFrameClass($tweet);
         $durationText = $this->formatVideoDurationText((string) ($tweet['durationText'] ?? ''));
-        $mediaMarkup = $this->components->renderFeedMedia($tweet, $frameClass, $durationText, $authorHandle);
+        $mediaMarkup = $useStaticPreview
+            ? $this->components->renderFeedMediaPreview($tweet, $frameClass, $durationText, $authorHandle)
+            : $this->components->renderFeedMedia($tweet, $frameClass, $durationText, $authorHandle);
         $authorMarkup = $this->components->renderAuthorIdentity(
             imageUrl: $tweet['authorAvatarUrl'] ?? null,
             authorName: $authorName,
             authorHandle: $authorHandle,
             authorInitial: $authorInitial,
             avatarSizeClass: 'h-7 w-7',
-            nameClass: 'truncate text-sm font-semibold text-gray-900'
+            nameClass: 'truncate text-sm font-semibold text-gray-900',
+            profileUrl: $this->profileUrlForUsername($authorUsername)
         );
 
         return $this->renderView('shortvideo.partials.feed.item', [
@@ -135,8 +284,23 @@ final class HomePageRenderer
             'displayText' => $displayText,
             'mediaMarkup' => $mediaMarkup,
             'authorMarkup' => $authorMarkup,
-            'postedAtText' => $this->formatFeedDate($tweet['postedAt'] ?? null),
+            'postedAtText' => $postedAtText ?? $this->formatFeedDate($tweet['postedAt'] ?? null),
+            'titleLineClampClass' => $this->resolveTitleLineClampClass($titleLineClamp),
+            'interactive' => $interactive,
+            'overlayMarkup' => $overlayMarkup,
+            'rootAttributes' => $rootAttributes,
+            'cardClass' => $cardClass,
         ]);
+    }
+
+    private function resolveTitleLineClampClass(int $titleLineClamp): string
+    {
+        return match ($titleLineClamp) {
+            1 => 'line-clamp-1',
+            3 => 'line-clamp-3',
+            4 => 'line-clamp-4',
+            default => 'line-clamp-2',
+        };
     }
 
     public function renderDetailModal(): string
@@ -156,26 +320,44 @@ final class HomePageRenderer
         );
     }
 
-    public function formatFeedSummary(string $mode, string $sourceHandle, int $renderedCount, bool $done): string
-    {
+    public function formatFeedSummary(
+        string $mode,
+        string $sourceHandle,
+        int $renderedCount,
+        bool $done,
+        ?string $searchQuery = null
+    ): string {
         $sourceLabel = match ($mode) {
             'featured' => '精选',
             'following' => '订阅更新',
+            'history' => '观看记录',
+            'bookmarks' => '我的收藏',
+            'interactions' => '我的互动',
             default => $sourceHandle !== '' ? '@'.$sourceHandle : '全部来源',
         };
+        $normalizedSearchQuery = trim((string) ($searchQuery ?? ''));
+        $summaryLabel = $normalizedSearchQuery === ''
+            ? $sourceLabel
+            : ($mode === 'explore' && $sourceHandle === ''
+                ? '搜索 “'.$normalizedSearchQuery.'”'
+                : $sourceLabel.' · 搜索 “'.$normalizedSearchQuery.'”');
 
         if ($renderedCount === 0 && $done) {
-            return "{$sourceLabel} 暂无内容";
+            return "{$summaryLabel} 暂无内容";
         }
 
         if ($renderedCount === 0) {
+            if ($normalizedSearchQuery !== '') {
+                return "{$summaryLabel} 正在加载…";
+            }
+
             return match ($mode) {
-                'featured', 'following' => "{$sourceLabel} 正在加载…",
-                default => "{$sourceLabel} 正在加载探索内容…",
+                'featured', 'following', 'history', 'bookmarks', 'interactions' => "{$summaryLabel} 正在加载…",
+                default => "{$summaryLabel} 正在加载探索内容…",
             };
         }
 
-        return $sourceLabel.' · 已展示 '.$renderedCount.' 条 · '.($done ? '已加载完毕' : '向下滚动继续加载');
+        return $summaryLabel.' · 已展示 '.$renderedCount.' 条 · '.($done ? '已加载完毕' : '向下滚动继续加载');
     }
 
     private function formatFeedDate(mixed $value): string
@@ -231,6 +413,11 @@ final class HomePageRenderer
      */
     private function getMediaFrameClass(array $tweet): string
     {
+        $frameMode = (string) config('shortvideo.feed_media_frame_mode', 'adaptive');
+        if ($frameMode === '16:9') {
+            return 'aspect-video';
+        }
+
         $width = (int) ($tweet['mediaWidth'] ?? 0);
         $height = (int) ($tweet['mediaHeight'] ?? 0);
 
@@ -246,6 +433,23 @@ final class HomePageRenderer
         }
 
         return mb_strlen((string) ($tweet['text'] ?? '')) > 110 ? 'aspect-[3/4]' : 'aspect-[4/5]';
+    }
+
+    /**
+     * @param  array<string, mixed>  $tweet
+     */
+    private function resolveInteractionLabel(array $tweet): string
+    {
+        if (($tweet['interactionType'] ?? null) !== 'comment') {
+            return '点赞了这个视频';
+        }
+
+        $parentAuthorUsername = trim((string) ($tweet['parentAuthorUsername'] ?? ''));
+        if ($parentAuthorUsername !== '') {
+            return '回复 @'.$parentAuthorUsername;
+        }
+
+        return '评论了这个视频';
     }
 
     private function formatVideoDurationText(string $value): string
@@ -286,7 +490,7 @@ final class HomePageRenderer
 
     /**
      * @param  array{id?:int,name?:string,username:string,avatarUrl?:string|null}|null  $viewer
-     * @return array<int, array{icon:string,label:string,active:bool,href:string,avatarUrl?:string|null,avatarInitial?:string|null}>
+     * @return array<int, array{icon:string,label:string,active:bool,href:string,avatarUrl?:string|null,avatarInitial?:string|null,authTriggerPanel?:string|null,mobileHidden?:bool,dividerBefore?:bool}>
      */
     private function navigationItems(string $activePage, ?array $viewer = null): array
     {
@@ -310,8 +514,8 @@ final class HomePageRenderer
                 'href' => route('rankings'),
             ],
             [
-                'icon' => $activePage === 'subscriptions' ? 'ph-fill ph-bookmarks' : 'ph ph-bookmarks',
-                'label' => '订阅',
+                'icon' => $activePage === 'subscriptions' ? 'ph-fill ph-users-three' : 'ph ph-users-three',
+                'label' => '关注',
                 'active' => $activePage === 'subscriptions',
                 'href' => route('subscriptions'),
             ],
@@ -321,10 +525,32 @@ final class HomePageRenderer
             $viewerName = trim((string) ($viewer['name'] ?? ''));
             $viewerUsername = trim((string) ($viewer['username'] ?? ''));
             $items[] = [
+                'icon' => $activePage === 'history' ? 'ph-fill ph-clock-counter-clockwise' : 'ph ph-clock-counter-clockwise',
+                'label' => '观看记录',
+                'active' => $activePage === 'history',
+                'href' => route('viewer.history'),
+                'mobileHidden' => true,
+                'dividerBefore' => true,
+            ];
+            $items[] = [
+                'icon' => $activePage === 'bookmarks' ? 'ph-fill ph-bookmark-simple' : 'ph ph-bookmark-simple',
+                'label' => '我的收藏',
+                'active' => $activePage === 'bookmarks',
+                'href' => route('viewer.bookmarks'),
+                'mobileHidden' => true,
+            ];
+            $items[] = [
+                'icon' => $activePage === 'interactions' ? 'ph-fill ph-chat-circle-dots' : 'ph ph-chat-circle-dots',
+                'label' => '我的互动',
+                'active' => $activePage === 'interactions',
+                'href' => route('viewer.interactions'),
+                'mobileHidden' => true,
+            ];
+            $items[] = [
                 'icon' => 'ph ph-user-circle',
                 'label' => '我的',
                 'active' => $activePage === 'profile',
-                'href' => route('profile'),
+                'href' => $this->profileUrlForUsername($viewerUsername) ?? route('home'),
                 'avatarUrl' => isset($viewer['avatarUrl']) ? trim((string) $viewer['avatarUrl']) ?: null : null,
                 'avatarInitial' => $this->getAuthorInitial($viewerName !== '' ? $viewerName : $viewerUsername),
             ];
@@ -337,8 +563,19 @@ final class HomePageRenderer
             'label' => '登录',
             'active' => false,
             'href' => route('login'),
+            'authTriggerPanel' => 'login',
+            'dividerBefore' => true,
         ];
 
         return $items;
+    }
+
+    private function profileUrlForUsername(?string $username): ?string
+    {
+        $normalizedUsername = trim((string) ($username ?? ''));
+
+        return $normalizedUsername !== ''
+            ? route('profile.show', ['username' => $normalizedUsername], false)
+            : null;
     }
 }

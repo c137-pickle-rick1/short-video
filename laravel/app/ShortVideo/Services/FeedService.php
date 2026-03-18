@@ -13,6 +13,12 @@ final class FeedService
 
     public const MODE_FOLLOWING = FeedConfig::MODE_FOLLOWING;
 
+    public const MODE_HISTORY = FeedConfig::MODE_HISTORY;
+
+    public const MODE_BOOKMARKS = FeedConfig::MODE_BOOKMARKS;
+
+    public const MODE_INTERACTIONS = FeedConfig::MODE_INTERACTIONS;
+
     public const DEFAULT_FEED_LIMIT = FeedConfig::DEFAULT_FEED_LIMIT;
 
     public const MAX_FEED_LIMIT = FeedConfig::MAX_FEED_LIMIT;
@@ -38,9 +44,10 @@ final class FeedService
         ?string $cursor = null,
         ?string $sourceHandle = '',
         int|string|null $limit = null,
-        string $mode = self::MODE_EXPLORE
+        string $mode = self::MODE_EXPLORE,
+        ?string $query = null
     ): array {
-        return $this->feedQueries->getFeedPage($cursor, $sourceHandle, $limit, $mode);
+        return $this->feedQueries->getFeedPage($cursor, $sourceHandle, $limit, $mode, $query);
     }
 
     /**
@@ -54,17 +61,46 @@ final class FeedService
     /**
      * @return array<string, mixed>
      */
-    public function getExplorePageViewModel(?string $sourceHandle = '', int|string|null $limit = null): array
-    {
-        return $this->feedPages->getExplorePageViewModel($sourceHandle, $limit);
+    public function getExplorePageViewModel(
+        ?string $sourceHandle = '',
+        int|string|null $limit = null,
+        ?string $query = null
+    ): array {
+        return $this->feedPages->getExplorePageViewModel($sourceHandle, $limit, $query);
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function getSubscriptionsPageViewModel(int|string|null $limit = null): array
+    public function getSubscriptionsPageViewModel(
+        int|string|null $limit = null,
+        ?string $selectedAccount = null
+    ): array {
+        return $this->feedPages->getSubscriptionsPageViewModel($limit, $selectedAccount);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getViewerHistoryPageViewModel(int|string|null $page = null): array
     {
-        return $this->feedPages->getSubscriptionsPageViewModel($limit);
+        return $this->feedPages->getViewerHistoryPageViewModel($page);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getViewerBookmarksPageViewModel(int|string|null $page = null): array
+    {
+        return $this->feedPages->getViewerBookmarksPageViewModel($page);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getViewerInteractionsPageViewModel(int|string|null $page = null): array
+    {
+        return $this->feedPages->getViewerInteractionsPageViewModel($page);
     }
 
     /**
@@ -86,13 +122,18 @@ final class FeedService
     /**
      * @return array<string, mixed>
      */
-    public function getProfilePageViewModel(User $viewer): array
+    public function getProfilePageViewModel(?User $viewer, User $profileUser, ?string $selectedLibraryTab = null): array
     {
-        return $this->feedPages->getProfilePageViewModel($viewer);
+        return $this->feedPages->getProfilePageViewModel($viewer, $profileUser, $selectedLibraryTab);
     }
 
-    public function formatFeedSummary(string $mode, string $sourceHandle, int $renderedCount, bool $done): string
-    {
-        return $this->feedQueries->formatFeedSummary($mode, $sourceHandle, $renderedCount, $done);
+    public function formatFeedSummary(
+        string $mode,
+        string $sourceHandle,
+        int $renderedCount,
+        bool $done,
+        ?string $query = null
+    ): string {
+        return $this->feedQueries->formatFeedSummary($mode, $sourceHandle, $renderedCount, $done, $query);
     }
 }

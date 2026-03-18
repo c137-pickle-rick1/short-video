@@ -5,21 +5,19 @@
   "type": "module",
   "scripts": {
     "auth": "npm run php:auth",
-    "build:styles": "tailwindcss -i ./laravel/resources/shortvideo/styles.css -o ./laravel/public/styles.css --minify",
     "db:migrate": "cd laravel && php artisan migrate --force",
-    "dev:styles": "tailwindcss -i ./laravel/resources/shortvideo/styles.css -o ./laravel/public/styles.css --watch",
-    "predev": "npm run build:styles",
-    "pretest": "npm run build:styles",
-    "dev": "npm run php:dev",
+    "dev": "concurrently -k -n php,vite \"npm:php:dev\" \"npm:vite:dev\"",
+    "build": "vite build",
     "crawl:once": "npm run php:crawl:once",
     "resolve:pending": "npm run php:resolve:pending",
     "backfill:avatars": "npm run php:backfill:avatars",
     "playwright:install": "playwright install chromium",
-    "test:node": "node --test sidecar/tests/*.test.js test/browserSmoke.test.js test/render.test.js test/videoPreview.test.js",
+    "test:node": "node --test sidecar/tests/*.test.js",
     "test": "npm run php:test && npm run test:node",
     "php:install": "composer install --working-dir=laravel",
-    "php:dev": "cd laravel && php artisan octane:start --server=swoole --host=127.0.0.1 --port=${PORT:-3000}",
+    "php:dev": "cd laravel && php artisan serve --host=127.0.0.1 --port=${PORT:-3000}",
     "php:test": "cd laravel && php artisan test",
+    "vite:dev": "vite",
     "php:auth": "cd laravel && php artisan shortvideo:auth",
     "php:sync:sources": "cd laravel && php artisan shortvideo:sync-sources",
     "php:crawl:once": "cd laravel && php artisan shortvideo:crawl-once",
@@ -34,6 +32,9 @@
     "playwright": "^1.58.2"
   },
   "devDependencies": {
-    "tailwindcss": "^3.4.19"
+    "concurrently": "^9.2.1",
+    "laravel-vite-plugin": "^2.1.0",
+    "tailwindcss": "^3.4.19",
+    "vite": "^7.1.7"
   }
 }

@@ -15,6 +15,13 @@ abstract class TestCase extends BaseTestCase
      */
     protected array $shortVideoTempFiles = [];
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withoutVite();
+    }
+
     protected function useShortVideoDatabase(array $sourcesConfig = []): ShortVideoRepository
     {
         $this->useUnmigratedShortVideoDatabase($sourcesConfig);

@@ -192,6 +192,113 @@ final class FeedApiTest extends TestCase
         $response->assertJsonPath('items.0.authorFollowedByViewer', true);
     }
 
+    public function test_explore_feed_search_matches_video_text_author_and_source_handle(): void
+    {
+        $repository = $this->useShortVideoDatabase();
+        [$demo, $maker, $sourceMatch] = $repository->syncSources([
+            ['handle' => 'demo', 'enabled' => true],
+            ['handle' => 'makerroom', 'enabled' => true],
+            ['handle' => 'source-match', 'enabled' => true],
+        ]);
+
+        $this->insertResolvedTweet($repository, $demo['id'], [
+            'tweetId' => '2401',
+            'tweet' => [
+                'authorHandle' => 'demo',
+                'authorName' => 'Demo',
+                'text' => 'Sunset alley walkthrough',
+            ],
+        ]);
+        $this->insertResolvedTweet($repository, $maker['id'], [
+            'tweetId' => '2402',
+            'tweet' => [
+                'authorHandle' => 'makerroom',
+                'authorName' => 'Studio Bravo',
+                'text' => 'Workbench session',
+            ],
+        ]);
+        $this->insertResolvedTweet($repository, $sourceMatch['id'], [
+            'tweetId' => '2403',
+            'tweet' => [
+                'authorHandle' => 'source-match',
+                'authorName' => 'Gamma',
+                'text' => 'Archive clip',
+            ],
+        ]);
+
+        $this->getJson('/api/feed?mode=explore&q=sunset')
+            ->assertOk()
+            ->assertJsonCount(1, 'items')
+            ->assertJsonPath('items.0.tweetId', '2401');
+
+        $this->getJson('/api/feed?mode=explore&q=studio%20bravo')
+            ->assertOk()
+            ->assertJsonCount(1, 'items')
+            ->assertJsonPath('items.0.tweetId', '2402');
+
+        $this->getJson('/api/feed?mode=explore&q=source-match')
+            ->assertOk()
+            ->assertJsonCount(1, 'items')
+            ->assertJsonPath('items.0.tweetId', '2403');
+    }
+
+    public function test_explore_feed_search_supports_source_intersection_blank_query_and_cursor_pagination(): void
+    {
+        $repository = $this->useShortVideoDatabase();
+        [$alpha, $beta] = $repository->syncSources([
+            ['handle' => 'alpha', 'enabled' => true],
+            ['handle' => 'beta', 'enabled' => true],
+        ]);
+
+        $this->insertResolvedTweet($repository, $alpha['id'], [
+            'tweetId' => '2404',
+            'tweet' => [
+                'authorHandle' => 'alpha',
+                'authorName' => 'Alpha',
+                'text' => 'Search match newest',
+                'postedAt' => now()->subHour()->toISOString(),
+            ],
+        ]);
+        $this->insertResolvedTweet($repository, $alpha['id'], [
+            'tweetId' => '2405',
+            'tweet' => [
+                'authorHandle' => 'alpha',
+                'authorName' => 'Alpha',
+                'text' => 'Search match older',
+                'postedAt' => now()->subHours(2)->toISOString(),
+            ],
+        ]);
+        $this->insertResolvedTweet($repository, $beta['id'], [
+            'tweetId' => '2406',
+            'tweet' => [
+                'authorHandle' => 'beta',
+                'authorName' => 'Beta',
+                'text' => 'Search match other source',
+                'postedAt' => now()->subMinutes(30)->toISOString(),
+            ],
+        ]);
+
+        $paginatedResponse = $this->getJson('/api/feed?mode=explore&q=search%20match&source=alpha&limit=1');
+
+        $paginatedResponse->assertOk();
+        $paginatedResponse->assertJsonCount(1, 'items');
+        $paginatedResponse->assertJsonPath('items.0.tweetId', '2404');
+
+        $nextCursor = $paginatedResponse->json('nextCursor');
+        $this->assertIsString($nextCursor);
+        $this->assertNotSame('', $nextCursor);
+
+        $this->getJson('/api/feed?mode=explore&q=search%20match&source=alpha&limit=1&cursor='.urlencode($nextCursor))
+            ->assertOk()
+            ->assertJsonCount(1, 'items')
+            ->assertJsonPath('items.0.tweetId', '2405')
+            ->assertJsonPath('nextCursor', null);
+
+        $this->getJson('/api/feed?mode=explore&q=%20%20%20')
+            ->assertOk()
+            ->assertJsonCount(3, 'items');
+    }
+
     public function test_rankings_api_returns_creator_activity_order_and_follow_state(): void
     {
         $repository = $this->useShortVideoDatabase();
@@ -247,6 +354,44 @@ final class FeedApiTest extends TestCase
         $response->assertJsonPath('items.1.rank', 2);
         $response->assertJsonPath('items.1.creator.username', 'beta');
         $response->assertJsonPath('items.1.followedByViewer', true);
+    }
+
+    public function test_rankings_api_includes_inactive_creators_after_active_ones_when_needed(): void
+    {
+        $repository = $this->useShortVideoDatabase();
+        [$activeSource, $olderSource] = $repository->syncSources([
+            ['handle' => 'active_creator', 'enabled' => true],
+            ['handle' => 'older_creator', 'enabled' => true],
+        ]);
+
+        $this->insertResolvedTweet($repository, $activeSource['id'], [
+            'tweetId' => '2204',
+            'tweet' => [
+                'authorHandle' => 'active_creator',
+                'authorName' => 'Active Creator',
+                'text' => 'Recently active',
+                'postedAt' => now()->subDay()->toISOString(),
+            ],
+        ]);
+        $this->insertResolvedTweet($repository, $olderSource['id'], [
+            'tweetId' => '2205',
+            'tweet' => [
+                'authorHandle' => 'older_creator',
+                'authorName' => 'Older Creator',
+                'text' => 'Older content',
+                'postedAt' => now()->subDays(20)->toISOString(),
+            ],
+        ]);
+
+        $response = $this->getJson('/api/rankings/creators?window=7d&limit=5');
+
+        $response->assertOk();
+        $response->assertJsonCount(2, 'items');
+        $response->assertJsonPath('items.0.creator.username', 'active_creator');
+        $response->assertJsonPath('items.0.publishedCount7d', 1);
+        $response->assertJsonPath('items.1.rank', 2);
+        $response->assertJsonPath('items.1.creator.username', 'older_creator');
+        $response->assertJsonPath('items.1.publishedCount7d', 0);
     }
 
     public function test_health_endpoint_reports_backoff_state(): void

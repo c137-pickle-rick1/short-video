@@ -9,7 +9,7 @@ class LoginRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'login' => is_string($this->input('login')) ? trim($this->input('login')) : $this->input('login'),
+            'email' => is_string($this->input('email')) ? mb_strtolower(trim($this->input('email'))) : $this->input('email'),
         ]);
     }
 
@@ -24,7 +24,7 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'login' => ['required', 'string'],
+            'email' => ['required', 'email'],
             'password' => ['required', 'string'],
         ];
     }
@@ -35,7 +35,8 @@ class LoginRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'login.required' => '请输入用户名、邮箱或手机号。',
+            'email.required' => '请输入邮箱地址。',
+            'email.email' => '请输入有效的邮箱地址。',
             'password.required' => '请输入密码。',
         ];
     }

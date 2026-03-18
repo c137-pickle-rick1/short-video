@@ -19,7 +19,8 @@ final class FeedController extends Controller
             $request->validated('cursor'),
             $request->validated('source'),
             $request->validated('limit', FeedService::DEFAULT_FEED_LIMIT),
-            (string) $request->validated('mode', FeedService::MODE_EXPLORE)
+            (string) $request->validated('mode', FeedService::MODE_EXPLORE),
+            $request->validated('q')
         );
 
         if (($result['requiresAuth'] ?? false) === true) {

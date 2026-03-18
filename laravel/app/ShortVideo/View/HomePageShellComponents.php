@@ -8,18 +8,21 @@ final class HomePageShellComponents
 {
     public function __construct(private readonly ViewFactory $views) {}
 
-    public function renderPageHeader(string $loginUrl, ?array $viewer = null, ?string $logoutUrl = null): string
-    {
-        return $this->renderPageHeaderContainer('fixed inset-x-0 top-0 z-40 w-full border-b border-gray-200 bg-white/95 backdrop-blur-xl');
-    }
-
-    public function renderPageHeaderPreview(string $loginUrl): string
-    {
-        return $this->renderPageHeaderContainer('rounded-2xl border border-gray-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]');
+    public function renderPageHeader(
+        string $searchUrl,
+        ?array $viewer = null,
+        ?string $logoutUrl = null,
+        ?string $searchQuery = null
+    ): string {
+        return $this->renderPageHeaderContainer(
+            'fixed inset-x-0 top-0 z-40 w-full border-b border-gray-200 bg-white/95 backdrop-blur-xl',
+            $searchUrl,
+            $searchQuery
+        );
     }
 
     /**
-     * @param  array<int, array{icon:string,label:string,active:bool,href:string,avatarUrl?:string|null,avatarInitial?:string|null}>  $items
+     * @param  array<int, array{icon:string,label:string,active:bool,href:string,avatarUrl?:string|null,avatarInitial?:string|null,authTriggerPanel?:string|null,mobileHidden?:bool,dividerBefore?:bool}>  $items
      */
     public function renderDesktopNavigation(array $items): string
     {
@@ -30,37 +33,18 @@ final class HomePageShellComponents
     }
 
     /**
-     * @param  array<int, array{icon:string,label:string,active:bool,href:string,avatarUrl?:string|null,avatarInitial?:string|null}>  $items
+     * @param  array<int, array{icon:string,label:string,active:bool,href:string,avatarUrl?:string|null,avatarInitial?:string|null,authTriggerPanel?:string|null,mobileHidden?:bool,dividerBefore?:bool}>  $items
      */
     public function renderMobileNavigation(array $items): string
     {
         return $this->renderMobileNavigationContainer(
             $items,
-            'fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white/95 px-3 py-2 backdrop-blur-2xl lg:hidden'
+            'fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white/95 px-0 pt-1 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] backdrop-blur-2xl lg:hidden'
         );
     }
 
     /**
-     * @param  array<int, array{icon:string,label:string,active:bool,href:string,avatarUrl?:string|null,avatarInitial?:string|null}>  $items
-     */
-    public function renderDesktopNavigationPreview(array $items): string
-    {
-        return $this->renderDesktopNavigationContainer($items, 'w-full');
-    }
-
-    /**
-     * @param  array<int, array{icon:string,label:string,active:bool,href:string,avatarUrl?:string|null,avatarInitial?:string|null}>  $items
-     */
-    public function renderMobileNavigationPreview(array $items): string
-    {
-        return $this->renderMobileNavigationContainer(
-            $items,
-            'relative rounded-2xl border border-gray-200/80 bg-white px-3 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.04)]'
-        );
-    }
-
-    /**
-     * @param  array{icon:string,label:string,active:bool,href:string,avatarUrl?:string|null,avatarInitial?:string|null}  $item
+     * @param  array{icon:string,label:string,active:bool,href:string,avatarUrl?:string|null,avatarInitial?:string|null,authTriggerPanel?:string|null,mobileHidden?:bool,dividerBefore?:bool}  $item
      */
     private function renderDesktopNavItem(array $item): string
     {
@@ -71,7 +55,7 @@ final class HomePageShellComponents
     }
 
     /**
-     * @param  array{icon:string,label:string,active:bool,href:string,avatarUrl?:string|null,avatarInitial?:string|null}  $item
+     * @param  array{icon:string,label:string,active:bool,href:string,avatarUrl?:string|null,avatarInitial?:string|null,authTriggerPanel?:string|null,mobileHidden?:bool,dividerBefore?:bool}  $item
      */
     private function renderMobileNavItem(array $item): string
     {
@@ -82,7 +66,7 @@ final class HomePageShellComponents
     }
 
     /**
-     * @param  array<int, array{icon:string,label:string,active:bool,href:string,avatarUrl?:string|null,avatarInitial?:string|null}>  $items
+     * @param  array<int, array{icon:string,label:string,active:bool,href:string,avatarUrl?:string|null,avatarInitial?:string|null,authTriggerPanel?:string|null,mobileHidden?:bool,dividerBefore?:bool}>  $items
      */
     private function renderDesktopNavigationContainer(array $items, string $wrapperClass): string
     {
@@ -95,7 +79,7 @@ final class HomePageShellComponents
     }
 
     /**
-     * @param  array<int, array{icon:string,label:string,active:bool,href:string,avatarUrl?:string|null,avatarInitial?:string|null}>  $items
+     * @param  array<int, array{icon:string,label:string,active:bool,href:string,avatarUrl?:string|null,avatarInitial?:string|null,authTriggerPanel?:string|null,mobileHidden?:bool,dividerBefore?:bool}>  $items
      */
     private function renderMobileNavigationContainer(array $items, string $wrapperClass): string
     {
@@ -109,15 +93,19 @@ final class HomePageShellComponents
     }
 
     private function renderPageHeaderContainer(
-        string $wrapperClass
+        string $wrapperClass,
+        string $searchUrl,
+        ?string $searchQuery = null
     ): string {
         return $this->renderView('shortvideo.partials.shell.page-header', [
             'wrapperClass' => $wrapperClass,
+            'searchUrl' => $searchUrl,
+            'searchQuery' => $searchQuery ?? '',
         ]);
     }
 
     /**
-     * @param  array{icon:string,label:string,active:bool,href:string,avatarUrl?:string|null,avatarInitial?:string|null}  $item
+     * @param  array{icon:string,label:string,active:bool,href:string,avatarUrl?:string|null,avatarInitial?:string|null,authTriggerPanel?:string|null,mobileHidden?:bool,dividerBefore?:bool}  $item
      */
     private function renderNavigationItemVisual(array $item, string $context): string
     {
@@ -130,7 +118,7 @@ final class HomePageShellComponents
             'avatarUrl' => $avatarUrl,
             'avatarInitial' => $avatarInitial,
             'icon' => (string) $item['icon'],
-            'iconSizeClass' => $context === 'mobile' ? 'text-[28px]' : 'text-2xl',
+            'iconSizeClass' => 'text-2xl',
         ]);
     }
 

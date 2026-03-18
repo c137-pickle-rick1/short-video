@@ -310,11 +310,91 @@ export function normalizeResolvedTweet(tweetNode, fallbackTweetId = null) {
   };
 }
 
+function toSyndicationMediaNode(media) {
+  return {
+    type: media?.type || null,
+    media_url_https: media?.media_url_https || null,
+    media_url: media?.media_url_https || media?.media_url || null,
+    original_info: media?.original_info || null,
+    video_info: media?.video_info || null
+  };
+}
+
+function toSyndicationTweetNode(payload, fallbackTweetId = null) {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const mediaDetails = Array.isArray(payload.mediaDetails) ? payload.mediaDetails : [];
+  const user = payload.user && typeof payload.user === "object" ? payload.user : {};
+  const restId = payload.id_str || fallbackTweetId;
+
+  if (!restId) {
+    return null;
+  }
+
+  return {
+    rest_id: String(restId),
+    legacy: {
+      id_str: String(restId),
+      full_text: payload.text || "",
+      created_at: payload.created_at || null,
+      extended_entities: {
+        media: mediaDetails.map((media) => toSyndicationMediaNode(media))
+      }
+    },
+    core: {
+      user_results: {
+        result: {
+          legacy: {
+            name: user.name || null,
+            screen_name: user.screen_name || null,
+            profile_image_url_https: user.profile_image_url_https || null
+          }
+        }
+      }
+    }
+  };
+}
+
+export function normalizeSyndicationTweet(payload, fallbackTweetId = null) {
+  const tweetNode = toSyndicationTweetNode(payload, fallbackTweetId);
+  if (!tweetNode) {
+    return null;
+  }
+
+  return normalizeResolvedTweet(tweetNode, fallbackTweetId);
+}
+
 function summarizePayload(rawPayloads) {
   return rawPayloads.slice(0, 4).map((entry) => ({
     url: entry.url,
     match: entry.match
   }));
+}
+
+async function fetchSyndicationPayload(tweetId) {
+  const url = new URL("https://cdn.syndication.twimg.com/tweet-result");
+  url.searchParams.set("id", String(tweetId));
+  url.searchParams.set("token", "1");
+
+  const response = await fetch(url, {
+    headers: {
+      accept: "application/json"
+    },
+    signal: AbortSignal.timeout(15000)
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const payload = await response.json().catch(() => null);
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  return payload;
 }
 
 async function getPageSnapshot(page) {
@@ -391,15 +471,20 @@ export class PlaywrightResolver {
   constructor({
     browserProfileDir,
     storageStatePath = null,
+    cdpUrl = null,
+    maxScrollRounds = 6,
     chromiumImpl = chromium,
     logger = console
   } = {}) {
     this.browserProfileDir = browserProfileDir;
     this.storageStatePath = storageStatePath;
+    this.cdpUrl = cdpUrl;
+    this.maxScrollRounds = Number.isFinite(maxScrollRounds) ? Math.max(1, maxScrollRounds) : 6;
     this.chromiumImpl = chromiumImpl;
     this.logger = logger;
     this.contextPromise = null;
     this.browser = null;
+    this.contextMode = null;
   }
 
   async ensureContext({ headless = true } = {}) {
@@ -411,7 +496,23 @@ export class PlaywrightResolver {
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         };
 
+        if (this.cdpUrl) {
+          this.contextMode = "cdp";
+          this.browser = await this.chromiumImpl.connectOverCDP(this.cdpUrl);
+          const [context] = this.browser.contexts();
+
+          if (!context) {
+            throw createAppError(
+              "browser_connect_failed",
+              `Connected to ${this.cdpUrl} but no existing browser context was available.`
+            );
+          }
+
+          return context;
+        }
+
         if (this.storageStatePath && fs.existsSync(this.storageStatePath)) {
+          this.contextMode = "storageState";
           this.browser = await this.chromiumImpl.launch({ headless });
           return this.browser.newContext({
             ...commonOptions,
@@ -419,6 +520,7 @@ export class PlaywrightResolver {
           });
         }
 
+        this.contextMode = "persistent";
         return this.chromiumImpl.launchPersistentContext(this.browserProfileDir, {
           headless,
           ...commonOptions
@@ -427,6 +529,10 @@ export class PlaywrightResolver {
     }
 
     return this.contextPromise;
+  }
+
+  canUseBrowserFallback() {
+    return Boolean(this.cdpUrl || this.storageStatePath || this.browserProfileDir);
   }
 
   async discoverSource(handle) {
@@ -464,7 +570,7 @@ export class PlaywrightResolver {
         handleOrUrl: `@${handle}`
       });
 
-      for (let round = 0; round < 6; round += 1) {
+      for (let round = 0; round < this.maxScrollRounds; round += 1) {
         const { entries, scrollHeight } = await collectMediaGridEntries(page);
         const extracted = extractMediaGridVideoLinks(entries, handle);
         let insertedThisRound = 0;
@@ -530,6 +636,61 @@ export class PlaywrightResolver {
   }
 
   async resolveTweet(tweetRecord) {
+    const syndicationPayload = await fetchSyndicationPayload(tweetRecord.tweetId).catch(() => null);
+    const syndicationTweet = normalizeSyndicationTweet(syndicationPayload, tweetRecord.tweetId);
+
+    if (syndicationPayload) {
+      if (syndicationTweet?.mediaAssets?.length > 0) {
+        return {
+          status: "resolved",
+          tweet: syndicationTweet,
+          mediaAssets: syndicationTweet.mediaAssets,
+          rawPayload: {
+            source: "syndication",
+            tweetId: String(tweetRecord.tweetId)
+          }
+        };
+      }
+
+      if (syndicationTweet?.hasVideoLikeMedia) {
+        return {
+          status: "external_only",
+          tweet: syndicationTweet,
+          mediaAssets: [],
+          rawPayload: {
+            source: "syndication",
+            tweetId: String(tweetRecord.tweetId)
+          }
+        };
+      }
+
+      if (!this.canUseBrowserFallback() || !tweetRecord?.tweetUrl) {
+        return {
+          status: "skipped",
+          tweet:
+            syndicationTweet ||
+            {
+              tweetId: String(tweetRecord.tweetId),
+              tweetUrl: tweetRecord.tweetUrl || null,
+              authorHandle: null,
+              authorName: null,
+              authorAvatarUrl: null,
+              text: "",
+              postedAt: null,
+              posterUrl: null,
+              mediaAssets: [],
+              hasVideoLikeMedia: false
+            },
+          mediaAssets: [],
+          rawPayload: {
+            source: "syndication",
+            tweetId: String(tweetRecord.tweetId),
+            typename: syndicationPayload.__typename || null
+          }
+        };
+      }
+    }
+
     const context = await this.ensureContext();
     const page = await context.newPage();
     const captured = [];
@@ -647,21 +808,57 @@ export class PlaywrightResolver {
     }
 
     const context = await this.contextPromise;
-    await context.close();
-    if (this.browser) {
-      await this.browser.close();
-      this.browser = null;
+    if (this.contextMode !== "cdp") {
+      await context.close();
+      if (this.browser) {
+        await this.browser.close();
+      }
     }
+
+    this.browser = null;
     this.contextPromise = null;
+    this.contextMode = null;
   }
 }
 
-export async function openAuthBrowser({ browserProfileDir, chromiumImpl = chromium }) {
-  const context = await chromiumImpl.launchPersistentContext(browserProfileDir, {
+export async function openAuthBrowser({
+  browserProfileDir,
+  cdpUrl = null,
+  chromiumImpl = chromium
+}) {
+  let context;
+  let page;
+
+  if (cdpUrl) {
+    const browser = await chromiumImpl.connectOverCDP(cdpUrl);
+    [context] = browser.contexts();
+
+    if (!context) {
+      throw createAppError(
+        "browser_connect_failed",
+        `Connected to ${cdpUrl} but no existing browser context was available.`
+      );
+    }
+
+    page = await context.newPage();
+    await page.goto("https://x.com/home", { waitUntil: "domcontentloaded" });
+
+    return {
+      close: async () => {
+        await page.close().catch(() => {});
+      }
+    };
+  }
+
+  context = await chromiumImpl.launchPersistentContext(browserProfileDir, {
     headless: false,
     viewport: { width: 1280, height: 900 }
   });
-  const page = await context.newPage();
+  page = await context.newPage();
   await page.goto("https://x.com/home", { waitUntil: "domcontentloaded" });
-  return context;
+  return {
+    close: async () => {
+      await context.close().catch(() => {});
+    }
+  };
 }

@@ -10,15 +10,29 @@ class SidecarClient
     /**
      * @return array<string, mixed>
      */
-    public function discoverSource(string $handle): array
+    public function discoverSource(string $handle, ?string $sourceUserId = null, ?string $sinceId = null): array
     {
-        return $this->runJsonCommand([
+        $arguments = [
             'discover-source',
             '--handle',
             $handle,
             '--mode',
             (string) config('shortvideo.discovery_mode'),
-        ], null, 180.0);
+            '--max-scroll-rounds',
+            (string) config('shortvideo.discovery_scroll_rounds'),
+        ];
+
+        if (is_string($sourceUserId) && trim($sourceUserId) !== '') {
+            $arguments[] = '--source-user-id';
+            $arguments[] = trim($sourceUserId);
+        }
+
+        if (is_string($sinceId) && trim($sinceId) !== '') {
+            $arguments[] = '--since-id';
+            $arguments[] = trim($sinceId);
+        }
+
+        return $this->runJsonCommand($arguments, null, 180.0);
     }
 
     /**
@@ -32,7 +46,11 @@ class SidecarClient
         }
 
         return $this->runJsonCommand(
-            ['resolve-tweets'],
+            [
+                'resolve-tweets',
+                '--mode',
+                (string) config('shortvideo.discovery_mode'),
+            ],
             json_encode($tweets, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]',
             null
         );
@@ -49,7 +67,7 @@ class SidecarClient
      */
     private function runJsonCommand(array $arguments, ?string $input = null, ?float $timeout = 180.0): array
     {
-        $process = new Process($this->command($arguments), config('shortvideo.repo_root'));
+        $process = new Process($this->command($arguments), config('shortvideo.repo_root'), $this->environment());
         $process->setTimeout($timeout);
 
         if ($input !== null) {
@@ -101,9 +119,29 @@ class SidecarClient
             (string) config('shortvideo.sidecar.node_binary'),
             (string) config('shortvideo.sidecar.cli_path'),
             ...$arguments,
+            '--concurrency',
+            '4',
             '--browser-profile-dir',
             (string) config('shortvideo.browser_profile_dir'),
+            '--x-api-max-pages',
+            (string) config('shortvideo.x_api.max_pages'),
+            '--x-api-page-size',
+            (string) config('shortvideo.x_api.page_size'),
         ];
+
+        if ((bool) config('shortvideo.x_api.include_replies')) {
+            $command[] = '--x-api-include-replies';
+        }
+
+        if ((bool) config('shortvideo.x_api.include_retweets')) {
+            $command[] = '--x-api-include-retweets';
+        }
+
+        $cdpUrl = trim((string) config('shortvideo.browser_cdp_url'));
+        if ($cdpUrl !== '') {
+            $command[] = '--cdp-url';
+            $command[] = $cdpUrl;
+        }
 
         $storageStatePath = (string) config('shortvideo.storage_state_path');
         if ($storageStatePath !== '') {
@@ -112,5 +150,15 @@ class SidecarClient
         }
 
         return $command;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function environment(): array
+    {
+        return [
+            'X_API_BEARER_TOKEN' => (string) config('shortvideo.x_api.bearer_token', ''),
+        ];
     }
 }

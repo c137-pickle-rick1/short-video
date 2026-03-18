@@ -18,6 +18,7 @@ class FeedIndexRequest extends FormRequest
     {
         return [
             'cursor' => ['nullable', 'string', 'max:255'],
+            'q' => ['nullable', 'string', 'max:120'],
             'source' => ['nullable', 'string', 'max:100'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:24'],
             'mode' => ['nullable', 'in:featured,explore,following'],

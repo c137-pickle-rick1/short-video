@@ -10,11 +10,19 @@ final class FeedUiComponents
 
     public function renderEmptyStateCard(
         string $title = '还没有可展示的视频',
-        string $body = '先在 <code>config/sources.json</code> 启用来源并运行抓取。首页布局已经准备好，一旦有数据就会按瀑布流方式展示出来。'
+        string $description = '先在 <code>config/sources.json</code> 启用来源并运行抓取。首页布局已经准备好，一旦有数据就会按瀑布流方式展示出来。',
+        string $iconClass = 'ph ph-magnifying-glass',
+        ?string $buttonLabel = null,
+        ?string $buttonHref = null,
+        array $buttonAttributes = []
     ): string {
         return $this->renderView('shortvideo.partials.feed.empty-state-card', [
             'title' => $title,
-            'body' => $body,
+            'description' => $description,
+            'iconClass' => $iconClass,
+            'buttonLabel' => $buttonLabel,
+            'buttonHref' => $buttonHref,
+            'buttonAttributes' => $buttonAttributes,
         ]);
     }
 
@@ -31,6 +39,23 @@ final class FeedUiComponents
             'authorHandle' => $authorHandle,
             'videoPreload' => ! empty($tweet['hlsUrl']) ? 'metadata' : 'none',
             'showVideo' => ($tweet['status'] ?? null) === 'resolved' && (! empty($tweet['hlsUrl']) || ! empty($tweet['videoUrl'])),
+            'durationBadge' => $this->renderDurationBadge($durationText),
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $tweet
+     */
+    public function renderFeedMediaPreview(array $tweet, string $frameClass, string $durationText, string $authorHandle): string
+    {
+        return $this->renderView('shortvideo.partials.feed.media', [
+            'frameClass' => $frameClass,
+            'posterUrl' => (string) ($tweet['posterUrl'] ?? ''),
+            'hlsUrl' => '',
+            'videoUrl' => '',
+            'authorHandle' => $authorHandle,
+            'videoPreload' => 'none',
+            'showVideo' => false,
             'durationBadge' => $this->renderDurationBadge($durationText),
         ]);
     }
@@ -52,7 +77,8 @@ final class FeedUiComponents
         ?string $handleClass = null,
         string $wrapperClass = 'flex min-w-0 items-center gap-3',
         string $fallbackClass = 'bg-gray-100 text-gray-700',
-        string $imageClass = ''
+        string $imageClass = '',
+        ?string $profileUrl = null
     ): string {
         return $this->renderView('shortvideo.partials.feed.author-identity', [
             'imageUrl' => $imageUrl,
@@ -65,6 +91,7 @@ final class FeedUiComponents
             'wrapperClass' => $wrapperClass,
             'fallbackClass' => $fallbackClass,
             'imageClass' => $imageClass,
+            'profileUrl' => $profileUrl,
             'avatarMarkup' => $this->renderAvatar($imageUrl, $authorName, $authorInitial, $avatarSizeClass, $fallbackClass, $imageClass),
         ]);
     }

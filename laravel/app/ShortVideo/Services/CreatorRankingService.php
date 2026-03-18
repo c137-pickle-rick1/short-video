@@ -34,7 +34,7 @@ final class CreatorRankingService
                 'description' => 'v1 先只看创作者更新活跃度。排序口径固定为近 7 天更新数、最近更新时间、总视频数，避免伪热度噪音。',
             ],
             'window' => $normalizedWindow,
-            'items' => $this->getCreatorRankingItems($rankingLimit, $viewer?->id),
+            'items' => $this->getCreatorRankingItems($rankingLimit, $viewer?->id, true),
         ];
     }
 
@@ -47,7 +47,8 @@ final class CreatorRankingService
         $viewer = $this->currentViewerResolver->resolve();
         $items = $this->getCreatorRankingItems(
             $this->normalizeRankingLimit($limit, FeedConfig::RANKINGS_LIMIT),
-            $viewer?->id
+            $viewer?->id,
+            true
         );
 
         return [
@@ -96,9 +97,12 @@ final class CreatorRankingService
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function getCreatorRankingItems(int $limit, ?int $viewerUserId): array
-    {
-        $items = $this->feeds->getCreatorRankings(7, $limit);
+    private function getCreatorRankingItems(
+        int $limit,
+        ?int $viewerUserId,
+        bool $includeInactiveFallback = false
+    ): array {
+        $items = $this->feeds->getCreatorRankings(7, $limit, $includeInactiveFallback);
         $followedUserIds = $viewerUserId !== null
             ? $this->socialGraph->getFollowedUserIds(
                 $viewerUserId,

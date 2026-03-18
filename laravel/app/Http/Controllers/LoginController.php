@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Auth\LocalAccountService;
 use App\Http\Requests\Auth\LoginRequest;
-use App\Models\User;
 use App\ShortVideo\View\LoginPageRenderer;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,10 +22,13 @@ final class LoginController extends Controller
 
         return view('shortvideo.login', [
             'documentHead' => $renderer->renderDocumentHead('登录 | Lagos Explore Feed'),
-            'loginCard' => $renderer->renderLoginCard(
-                formAction: route('login.store'),
-                identifierValue: (string) old('login'),
-                identifierError: $this->validationError('login'),
+            'authModalMarkup' => $renderer->renderAuthModal(
+                initialPanel: 'login',
+                open: true,
+                standalone: true,
+                loginFormAction: route('login.store'),
+                loginEmailValue: (string) old('email'),
+                loginEmailError: $this->validationError('email'),
                 passwordError: $this->validationError('password'),
                 statusMessage: session('status'),
                 errorMessage: $this->validationError('auth'),
@@ -32,26 +36,39 @@ final class LoginController extends Controller
         ]);
     }
 
-    public function store(LoginRequest $request): RedirectResponse
+    public function store(LoginRequest $request, LocalAccountService $localAccountService): RedirectResponse|JsonResponse
     {
         $payload = $request->validated();
 
-        $user = $this->findLoginUser((string) $payload['login']);
+        $user = $localAccountService->findLocalUserByEmail((string) $payload['email']);
 
         if (! $user || ! is_string($user->password) || $user->password === '' || ! Hash::check((string) $payload['password'], $user->password)) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => '邮箱或密码错误。',
+                    'errors' => [
+                        'auth' => ['邮箱或密码错误。'],
+                    ],
+                ], 422);
+            }
+
             return back()
                 ->withErrors([
-                    'auth' => '账号或密码错误。',
+                    'auth' => '邮箱或密码错误。',
                 ])
-                ->withInput($request->only('login'));
+                ->withInput($request->only('email'));
         }
 
         Auth::guard(config('auth.defaults.guard'))->login($user);
         $request->session()->regenerate();
 
-        $user->forceFill([
-            'last_login_at' => now(),
-        ])->save();
+        $localAccountService->markLoggedIn($user);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => '登录成功。',
+            ]);
+        }
 
         return redirect()->to($this->redirectUrl($request));
     }
@@ -67,25 +84,6 @@ final class LoginController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('login')->with('status', '你已退出登录。');
-    }
-
-    private function findLoginUser(string $identifier): ?User
-    {
-        $normalizedIdentifier = trim($identifier);
-        if ($normalizedIdentifier === '') {
-            return null;
-        }
-
-        $loweredIdentifier = mb_strtolower($normalizedIdentifier);
-
-        return User::query()
-            ->where('account_type', 'local')
-            ->where(function ($query) use ($normalizedIdentifier, $loweredIdentifier): void {
-                $query->whereRaw('LOWER(username) = ?', [$loweredIdentifier])
-                    ->orWhereRaw('LOWER(email) = ?', [$loweredIdentifier])
-                    ->orWhere('phone', $normalizedIdentifier);
-            })
-            ->first();
     }
 
     private function redirectUrl(Request $request): string

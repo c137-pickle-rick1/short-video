@@ -195,6 +195,15 @@ final class EngagementRepository
         ];
     }
 
+    public function deleteViewerComment(int $commentId, int $videoId, int $userId): int
+    {
+        return $this->db->table('video_comments')
+            ->where('id', $commentId)
+            ->where('video_id', $videoId)
+            ->where('user_id', $userId)
+            ->delete();
+    }
+
     public function recordVideoView(int $videoId, ?int $userId, string $sessionId, ?string $viewDate = null): bool
     {
         $timestamp = now();
@@ -208,5 +217,20 @@ final class EngagementRepository
         ]);
 
         return $changes > 0;
+    }
+
+    public function deleteViewerHistory(int $videoId, int $userId): int
+    {
+        return $this->db->table('video_views')
+            ->where('video_id', $videoId)
+            ->where('user_id', $userId)
+            ->delete();
+    }
+
+    public function clearViewerHistory(int $userId): int
+    {
+        return $this->db->table('video_views')
+            ->where('user_id', $userId)
+            ->delete();
     }
 }

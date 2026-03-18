@@ -77,9 +77,11 @@ final class ProfileAvatarUploadTest extends TestCase
         $avatarUrl = (string) $response->json('avatarUrl');
         $storedPath = $this->publicDiskPathFromUrl($avatarUrl);
 
+        $this->assertStringStartsWith('/avatars/'.$viewer->id.'/', $avatarUrl);
         $this->assertNotNull($storedPath);
         $this->assertStringStartsWith('avatars/'.$viewer->id.'/', $storedPath);
         Storage::disk('public')->assertExists($storedPath);
+        $this->get($avatarUrl)->assertOk();
 
         $viewer->refresh();
         $this->assertSame($avatarUrl, $viewer->avatar_url);

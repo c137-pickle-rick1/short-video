@@ -98,6 +98,9 @@ final class LegacySchemaPreparationService
             $table->text('duration_text')->nullable();
         }) ? 1 : 0;
 
+        $columnsAdded += $this->ensureSourceProviderUserIdColumn() ? 1 : 0;
+        $columnsAdded += $this->ensureSourceLastSeenTweetIdColumn() ? 1 : 0;
+
         $this->db->statement('CREATE INDEX IF NOT EXISTS idx_tweets_status_sort ON tweets(status, posted_at DESC, ingested_at DESC, tweet_id DESC)');
         $this->db->statement('CREATE INDEX IF NOT EXISTS idx_tweets_source_status ON tweets(source_id, status)');
         $this->db->statement('CREATE INDEX IF NOT EXISTS idx_media_assets_primary ON media_assets(tweet_id, is_primary)');
@@ -107,6 +110,21 @@ final class LegacySchemaPreparationService
             'tablesCreated' => $tablesCreated,
             'columnsAdded' => $columnsAdded,
             'indexesEnsured' => 4,
+        ];
+    }
+
+    /**
+     * @return array{columnsAdded:int}
+     */
+    public function ensureSourceApiCursorColumns(): array
+    {
+        $columnsAdded = 0;
+
+        $columnsAdded += $this->ensureSourceProviderUserIdColumn() ? 1 : 0;
+        $columnsAdded += $this->ensureSourceLastSeenTweetIdColumn() ? 1 : 0;
+
+        return [
+            'columnsAdded' => $columnsAdded,
         ];
     }
 
@@ -295,6 +313,44 @@ final class LegacySchemaPreparationService
 
         $this->schema()->table('sources', function (Blueprint $table): void {
             $table->unsignedBigInteger('user_id')->nullable();
+        });
+
+        return true;
+    }
+
+    private function ensureSourceProviderUserIdColumn(): bool
+    {
+        if (! $this->schema()->hasTable('sources') || $this->schema()->hasColumn('sources', 'provider_user_id')) {
+            return false;
+        }
+
+        if ($this->db->getDriverName() === 'sqlite') {
+            $this->db->statement('ALTER TABLE sources ADD COLUMN provider_user_id TEXT NULL');
+
+            return true;
+        }
+
+        $this->schema()->table('sources', function (Blueprint $table): void {
+            $table->string('provider_user_id')->nullable();
+        });
+
+        return true;
+    }
+
+    private function ensureSourceLastSeenTweetIdColumn(): bool
+    {
+        if (! $this->schema()->hasTable('sources') || $this->schema()->hasColumn('sources', 'last_seen_tweet_id')) {
+            return false;
+        }
+
+        if ($this->db->getDriverName() === 'sqlite') {
+            $this->db->statement('ALTER TABLE sources ADD COLUMN last_seen_tweet_id TEXT NULL');
+
+            return true;
+        }
+
+        $this->schema()->table('sources', function (Blueprint $table): void {
+            $table->string('last_seen_tweet_id')->nullable();
         });
 
         return true;
