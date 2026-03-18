@@ -1,6 +1,5 @@
 <?php
 
-use App\ShortVideo\Support\ShortVideoData;
 use App\ShortVideo\Support\ShortVideoPath;
 
 return [
@@ -16,7 +15,6 @@ return [
         ? env('DISCOVERY_MODE', 'hybrid')
         : 'hybrid',
     'media_proxy_timeout_ms' => max(1, (int) env('MEDIA_PROXY_TIMEOUT_MS', 15000)),
-    'run_migrations_on_boot' => ShortVideoData::parseBoolean(env('RUN_MIGRATIONS_ON_BOOT', true)),
     'sidecar' => [
         'node_binary' => env('SIDECAR_NODE_BINARY', 'node'),
         'cli_path' => ShortVideoPath::resolve(env('SIDECAR_CLI_PATH'), './sidecar/cli.js'),

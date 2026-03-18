@@ -3,27 +3,24 @@
 namespace App\ShortVideo\View;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\View\Factory as ViewFactory;
 
 final class HomePageRenderer
 {
     public function __construct(
         private readonly FeedUiComponents $components,
-        private readonly HomePageShellComponents $shellComponents
+        private readonly HomePageShellComponents $shellComponents,
+        private readonly ViewFactory $views
     ) {}
 
     public function renderDocumentHead(string $pageTitle): string
     {
-        return <<<HTML
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="csrf-token" content="{$this->escape(csrf_token())}" />
-    <title>{$this->escape($pageTitle)}</title>
-    <link rel="stylesheet" href="/vendor/fonts/fonts.css" />
-    <link rel="stylesheet" href="/vendor/phosphor/regular/style.css" />
-    <link rel="stylesheet" href="/vendor/phosphor/fill/style.css" />
-    <link rel="stylesheet" href="/vendor/plyr/plyr.css" />
-    <link rel="stylesheet" href="/styles.css" />
-HTML;
+        return $this->renderView('shortvideo.partials.document-head', [
+            'pageTitle' => $pageTitle,
+            'includeCsrfToken' => true,
+            'includePhosphorStyles' => true,
+            'includePlyrStyles' => true,
+        ]);
     }
 
     /**
@@ -56,8 +53,7 @@ HTML;
         int $renderedCount,
         bool $done,
         bool $showSourceFilter = true
-    ): string
-    {
+    ): string {
         $feedSummaryText = $this->formatFeedSummary($mode, $activeSourceHandle, $renderedCount, $done);
         $feedStatusText = $renderedCount === 0
             ? match ($mode) {
@@ -65,39 +61,14 @@ HTML;
                 'following' => '等待订阅更新进入列表',
                 default => '等待探索内容进入列表',
             }
-            : ($done ? '当前结果已全部加载' : '向下滚动继续扩展列表');
-        $selectedAll = $activeSourceHandle === '' ? 'selected' : '';
-        $activeSourceOption = $activeSourceHandle !== ''
-            ? <<<HTML
-                  <option value="{$this->escape($activeSourceHandle)}" selected>
-                    {$this->escape('@'.$activeSourceHandle)}
-                  </option>
-              HTML
-            : '';
-        $sourceFilterMarkup = $showSourceFilter
-            ? <<<HTML
-              <label class="inline-flex items-center gap-3 text-sm text-gray-600">
-                <span class="shrink-0 font-medium text-gray-700">来源</span>
-                <select
-                  id="source-filter"
-                  class="h-11 min-w-[180px] rounded-full border border-gray-200 bg-gray-50 px-4 text-sm text-gray-900 outline-none transition focus:border-gray-300"
-                >
-                  <option value="" {$selectedAll}>全部来源</option>
-                  {$activeSourceOption}
-                </select>
-              </label>
-HTML
-            : '';
+        : ($done ? '当前结果已全部加载' : '向下滚动继续扩展列表');
 
-        return <<<HTML
-            <div class="mb-4 flex flex-col gap-3 rounded-[28px] border border-gray-200 bg-white/90 px-4 py-4 shadow-sm backdrop-blur-xl sm:px-5 lg:mb-5 lg:flex-row lg:items-center lg:justify-between lg:px-6">
-              <div class="min-w-0">
-                <p id="feed-summary" class="text-sm font-medium text-gray-700">{$this->escape($feedSummaryText)}</p>
-                <p id="feed-status" class="mt-1 text-xs text-gray-500" aria-live="polite">{$this->escape($feedStatusText)}</p>
-              </div>
-              {$sourceFilterMarkup}
-            </div>
-HTML;
+        return $this->renderView('shortvideo.partials.feed.toolbar', [
+            'feedSummaryText' => $feedSummaryText,
+            'feedStatusText' => $feedStatusText,
+            'activeSourceHandle' => $activeSourceHandle,
+            'showSourceFilter' => $showSourceFilter,
+        ]);
     }
 
     /**
@@ -115,46 +86,22 @@ HTML;
                 (string) ($emptyState['body'] ?? '先在 <code>config/sources.json</code> 启用来源并运行抓取。首页布局已经准备好，一旦有数据就会按瀑布流方式展示出来。')
             )
             : implode('', array_map(fn (array $item) => $this->renderFeedItem($item), $items));
-        $emptyAttr = $isEmpty ? 'true' : 'false';
 
-        return <<<HTML
-            <section class="feed-grid" id="feed-grid" aria-live="polite" data-empty="{$emptyAttr}">
-              <div class="feed-grid-col">
-                {$itemsMarkup}
-              </div>
-              <div class="feed-grid-col"></div>
-              <div class="feed-grid-col hidden xl:block"></div>
-              <div class="feed-grid-col hidden 2xl:block"></div>
-            </section>
-            <div id="feed-sentinel" class="h-px" aria-hidden="true"></div>
-            {$this->renderFeedLoadingIndicator()}
-HTML;
+        return $this->renderView('shortvideo.partials.feed.grid', [
+            'isEmpty' => $isEmpty,
+            'itemsMarkup' => $itemsMarkup,
+        ]);
     }
 
     public function renderFeedLoadingIndicator(): string
     {
-        return <<<'HTML'
-            <div
-              id="feed-loading-indicator"
-              class="hidden py-6 text-center"
-              role="status"
-              aria-live="polite"
-              aria-hidden="true"
-              hidden
-            >
-              <div class="inline-flex items-center gap-3 rounded-full border border-gray-200 bg-white/90 px-4 py-2 text-sm font-medium text-gray-500 shadow-sm backdrop-blur">
-                <i class="ph ph-spinner-gap animate-spin text-base text-rose-500" aria-hidden="true"></i>
-                <span>正在加载更多</span>
-              </div>
-            </div>
-HTML;
+        return $this->renderView('shortvideo.partials.feed.loading-indicator');
     }
 
     public function renderFeedEmptyState(
         string $title = '还没有可展示的视频',
         string $body = '先在 <code>config/sources.json</code> 启用来源并运行抓取。首页布局已经准备好，一旦有数据就会按瀑布流方式展示出来。'
-    ): string
-    {
+    ): string {
         return $this->components->renderEmptyStateCard(title: $title, body: $body);
     }
 
@@ -164,13 +111,10 @@ HTML;
     public function renderFeedItem(array $tweet): string
     {
         $displayText = $this->getDisplayText($tweet);
-        $safeText = $this->escape($displayText);
         $authorName = isset($tweet['authorName']) && $tweet['authorName'] !== null
             ? (string) $tweet['authorName']
             : '@'.($tweet['authorHandle'] ?? 'unknown');
         $authorHandle = (string) ($tweet['authorHandle'] ?? 'unknown');
-        $safeAuthor = $this->escape($authorName);
-        $safeStatus = $this->escape((string) ($tweet['status'] ?? 'pending'));
         $authorInitial = $this->getAuthorInitial($authorName);
         $frameClass = $this->getMediaFrameClass($tweet);
         $durationText = $this->formatVideoDurationText((string) ($tweet['durationText'] ?? ''));
@@ -184,52 +128,20 @@ HTML;
             nameClass: 'truncate text-sm font-semibold text-gray-900'
         );
 
-        return <<<HTML
-    <article
-      class="feed-grid-item group mb-3 inline-block w-full cursor-pointer overflow-hidden rounded-3xl border border-gray-200 bg-white/95 shadow-sm backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-rose-300 sm:mb-4 lg:mb-5 xl:mb-6 2xl:mb-7"
-      data-tweet-id="{$this->escape((string) ($tweet['tweetId'] ?? ''))}"
-      data-status="{$safeStatus}"
-      data-feed-detail-trigger="true"
-      role="button"
-      tabindex="0"
-      aria-haspopup="dialog"
-      aria-label="打开 {$safeAuthor} 的视频详情"
-    >
-      {$mediaMarkup}
-      <div class="grid gap-3 px-4 pb-4 pt-3">
-        <p class="line-clamp-2 overflow-hidden text-base font-semibold leading-6 text-gray-900">
-          {$safeText}
-        </p>
-        <div class="flex items-center justify-between gap-3">
-          {$authorMarkup}
-          <div class="shrink-0 text-xs text-gray-500">
-            <span>{$this->escape($this->formatFeedDate($tweet['postedAt'] ?? null))}</span>
-          </div>
-        </div>
-      </div>
-    </article>
-HTML;
+        return $this->renderView('shortvideo.partials.feed.item', [
+            'tweetId' => (string) ($tweet['tweetId'] ?? ''),
+            'status' => (string) ($tweet['status'] ?? 'pending'),
+            'authorName' => $authorName,
+            'displayText' => $displayText,
+            'mediaMarkup' => $mediaMarkup,
+            'authorMarkup' => $authorMarkup,
+            'postedAtText' => $this->formatFeedDate($tweet['postedAt'] ?? null),
+        ]);
     }
 
     public function renderDetailModal(): string
     {
-        return <<<'HTML'
-    <div
-      id="feed-detail-modal"
-      class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/20 p-3 sm:p-5 xl:p-7"
-      hidden
-    >
-      <section
-        id="feed-detail-modal-panel"
-        class="relative z-10 flex h-[92vh] max-h-[920px] w-full max-w-[1520px] overflow-hidden rounded-[32px] bg-white shadow-glass animate-card-in"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="detail-modal-title"
-        tabindex="-1"
-      >
-      </section>
-    </div>
-HTML;
+        return $this->renderView('shortvideo.partials.feed.detail-modal');
     }
 
     /**
@@ -362,6 +274,14 @@ HTML;
     private function escape(string $value): string
     {
         return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function renderView(string $view, array $data = []): string
+    {
+        return $this->views->make($view, $data)->render();
     }
 
     /**

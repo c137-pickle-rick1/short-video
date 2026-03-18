@@ -3,10 +3,10 @@
 namespace Tests;
 
 use App\ShortVideo\Repositories\ShortVideoRepository;
+use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -16,6 +16,14 @@ abstract class TestCase extends BaseTestCase
     protected array $shortVideoTempFiles = [];
 
     protected function useShortVideoDatabase(array $sourcesConfig = []): ShortVideoRepository
+    {
+        $this->useUnmigratedShortVideoDatabase($sourcesConfig);
+        Artisan::call('migrate', ['--force' => true]);
+
+        return $this->app->make(ShortVideoRepository::class);
+    }
+
+    protected function useUnmigratedShortVideoDatabase(array $sourcesConfig = []): void
     {
         $databasePath = tempnam(sys_get_temp_dir(), 'short-video-db-');
         $sourcesPath = tempnam(sys_get_temp_dir(), 'short-video-sources-');
@@ -36,9 +44,6 @@ abstract class TestCase extends BaseTestCase
 
         DB::purge('sqlite');
         DB::reconnect('sqlite');
-        Artisan::call('migrate', ['--force' => true]);
-
-        return $this->app->make(ShortVideoRepository::class);
     }
 
     protected function insertResolvedTweet(ShortVideoRepository $repository, int $sourceId, array $overrides = []): void

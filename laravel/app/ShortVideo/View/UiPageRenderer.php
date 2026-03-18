@@ -2,6 +2,8 @@
 
 namespace App\ShortVideo\View;
 
+use Illuminate\Contracts\View\Factory as ViewFactory;
+
 final class UiPageRenderer
 {
     public function __construct(
@@ -9,20 +11,18 @@ final class UiPageRenderer
         private readonly FeedUiComponents $feedComponents,
         private readonly HomePageRenderer $homePageRenderer,
         private readonly HomePageShellComponents $shellComponents,
-        private readonly LoginPageRenderer $loginPageRenderer
+        private readonly LoginPageRenderer $loginPageRenderer,
+        private readonly ViewFactory $views
     ) {}
 
     public function renderDocumentHead(string $pageTitle): string
     {
-        return <<<HTML
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{$this->escape($pageTitle)}</title>
-    <link rel="stylesheet" href="/vendor/fonts/fonts.css" />
-    <link rel="stylesheet" href="/vendor/phosphor/regular/style.css" />
-    <link rel="stylesheet" href="/vendor/phosphor/fill/style.css" />
-    <link rel="stylesheet" href="/styles.css" />
-HTML;
+        return $this->renderView('shortvideo.partials.document-head', [
+            'pageTitle' => $pageTitle,
+            'includeCsrfToken' => false,
+            'includePhosphorStyles' => true,
+            'includePlyrStyles' => false,
+        ]);
     }
 
     public function renderPageHeader(string $loginUrl): string
@@ -220,44 +220,30 @@ HTML;
             ])
         );
 
-        return <<<HTML
-          <div class="mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8 xl:px-10">
-            <article class="mx-auto min-w-0 max-w-[980px]">
-              {$this->renderPageIntro()}
-              <div class="mt-12 grid gap-16">
-                {$shellSection}
-                {$atomsSection}
-                {$feedSection}
-                {$authSection}
-              </div>
-            </article>
-          </div>
-HTML;
+        return $this->renderView('shortvideo.partials.ui.showcase', [
+            'pageIntro' => $this->renderPageIntro(),
+            'sections' => [
+                $shellSection,
+                $atomsSection,
+                $feedSection,
+                $authSection,
+            ],
+        ]);
     }
 
     private function renderPageIntro(): string
     {
-        return <<<HTML
-          <header class="border-b border-gray-200 pb-8">
-            <p class="text-sm font-medium text-sky-700">Components</p>
-            <h1 class="mt-3 text-4xl font-semibold tracking-tight text-gray-950 sm:text-[2.75rem]">UI Library</h1>
-          </header>
-HTML;
+        return $this->renderView('shortvideo.partials.ui.page-intro');
     }
 
     private function renderSection(string $id, string $eyebrow, string $title, string $content): string
     {
-        $safeId = $this->escape($id);
-
-        return <<<HTML
-          <section id="{$safeId}" class="grid gap-8 border-t border-gray-200 pt-10 first:border-t-0 first:pt-0 scroll-mt-28">
-            <div>
-              <p class="text-sm font-medium text-sky-700">{$this->escape($eyebrow)}</p>
-              <h2 class="mt-3 text-3xl font-semibold tracking-tight text-gray-950">{$this->escape($title)}</h2>
-            </div>
-            {$content}
-          </section>
-HTML;
+        return $this->renderView('shortvideo.partials.ui.section', [
+            'id' => $id,
+            'eyebrow' => $eyebrow,
+            'title' => $title,
+            'content' => $content,
+        ]);
     }
 
     /**
@@ -275,24 +261,13 @@ HTML;
         string $spanClass = '',
         string $previewClass = ''
     ): string {
-        $safeTitle = $this->escape($title);
-        $noteMarkup = $note !== ''
-            ? '<p class="text-sm leading-6 text-gray-500">'.$this->escape($note).'</p>'
-            : '';
-        $wrapperClass = $previewClass !== '' ? ' class="'.$this->escape($previewClass).'"' : '';
-        $storyClass = trim('grid content-start gap-4 '.$spanClass);
-
-        return <<<HTML
-          <article class="{$storyClass}">
-            <div>
-              <h3 class="text-base font-semibold tracking-tight text-gray-950">{$safeTitle}</h3>
-            </div>
-            <div{$wrapperClass}>
-              {$preview}
-            </div>
-            {$noteMarkup}
-          </article>
-HTML;
+        return $this->renderView('shortvideo.partials.ui.story', [
+            'title' => $title,
+            'preview' => $preview,
+            'note' => $note,
+            'storyClass' => trim('grid content-start gap-4 '.$spanClass),
+            'previewClass' => $previewClass,
+        ]);
     }
 
     private function demoSurfaceClass(string $extraClasses = ''): string
@@ -380,8 +355,11 @@ HTML;
         ];
     }
 
-    private function escape(string $value): string
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function renderView(string $view, array $data = []): string
     {
-        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        return $this->views->make($view, $data)->render();
     }
 }

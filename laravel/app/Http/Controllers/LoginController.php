@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
 use App\ShortVideo\View\LoginPageRenderer;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -31,15 +32,9 @@ final class LoginController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(LoginRequest $request): RedirectResponse
     {
-        $payload = $request->validate([
-            'login' => ['required', 'string'],
-            'password' => ['required', 'string'],
-        ], [
-            'login.required' => '请输入用户名、邮箱或手机号。',
-            'password.required' => '请输入密码。',
-        ]);
+        $payload = $request->validated();
 
         $user = $this->findLoginUser((string) $payload['login']);
 

@@ -2,19 +2,23 @@
 
 namespace App\ShortVideo\View;
 
+use Illuminate\Contracts\View\Factory as ViewFactory;
+
 final class LoginPageRenderer
 {
-    public function __construct(private readonly AuthUiComponents $components) {}
+    public function __construct(
+        private readonly AuthUiComponents $components,
+        private readonly ViewFactory $views
+    ) {}
 
     public function renderDocumentHead(string $pageTitle): string
     {
-        return <<<HTML
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{$this->escape($pageTitle)}</title>
-    <link rel="stylesheet" href="/vendor/fonts/fonts.css" />
-    <link rel="stylesheet" href="/styles.css" />
-HTML;
+        return $this->renderView('shortvideo.partials.document-head', [
+            'pageTitle' => $pageTitle,
+            'includeCsrfToken' => false,
+            'includePhosphorStyles' => false,
+            'includePlyrStyles' => false,
+        ]);
     }
 
     public function renderLoginCard(
@@ -28,8 +32,7 @@ HTML;
         ?string $passwordError = null,
         ?string $statusMessage = null,
         ?string $errorMessage = null
-    ): string
-    {
+    ): string {
         $fieldsMarkup = implode('', [
             $this->components->renderInputField(
                 '用户名 / 邮箱 / 手机号',
@@ -72,5 +75,13 @@ HTML;
     private function escape(string $value): string
     {
         return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function renderView(string $view, array $data = []): string
+    {
+        return $this->views->make($view, $data)->render();
     }
 }

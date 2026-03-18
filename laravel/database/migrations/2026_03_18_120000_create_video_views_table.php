@@ -8,10 +8,6 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (Schema::hasTable('video_views')) {
-            return;
-        }
-
         Schema::create('video_views', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('video_id')->constrained('videos')->cascadeOnDelete();
@@ -28,6 +24,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Intentionally left empty to avoid destructive drops against an existing database.
+        Schema::dropIfExists('video_views');
     }
 };

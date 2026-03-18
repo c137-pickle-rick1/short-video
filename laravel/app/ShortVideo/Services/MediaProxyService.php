@@ -2,7 +2,7 @@
 
 namespace App\ShortVideo\Services;
 
-use App\ShortVideo\Repositories\ShortVideoRepository;
+use App\ShortVideo\Repositories\FeedRepository;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Psr\Http\Message\StreamInterface;
@@ -20,7 +20,7 @@ final class MediaProxyService
     ];
 
     public function __construct(
-        private readonly ShortVideoRepository $repository,
+        private readonly FeedRepository $feeds,
         private readonly Client $client = new Client(['http_errors' => false, 'stream' => true])
     ) {}
 
@@ -29,7 +29,7 @@ final class MediaProxyService
      */
     public function getMediaStream(string $tweetId, ?string $rangeHeader = ''): array
     {
-        $media = $this->repository->getPrimaryMedia($tweetId);
+        $media = $this->feeds->getPrimaryMedia($tweetId);
         if (! is_array($media) || empty($media['url'])) {
             return [
                 'kind' => 'json',

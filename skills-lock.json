@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": {
+    "clean-code-principles": {
+      "source": "asyrafhussin/agent-skills",
+      "sourceType": "github",
+      "computedHash": "4c22dca6110d58f1454523dc3f192ef20d91f538233da9132b407edd041a4762"
+    },
+    "laravel-best-practices": {
+      "source": "asyrafhussin/agent-skills",
+      "sourceType": "github",
+      "computedHash": "6eb357774a2416b3e632cf4f7dec1ff9558af2d70c4b8ade802f5a65ce118fb5"
+    },
+    "laravel-database-optimization": {
+      "source": "asyrafhussin/agent-skills",
+      "sourceType": "github",
+      "computedHash": "e81daff09b14fcf8bb1e5dfa800ff6156f7040cd820664966cac748c2cefb46e"
+    },
+    "laravel-testing": {
+      "source": "asyrafhussin/agent-skills",
+      "sourceType": "github",
+      "computedHash": "9627c977341aa7a9a11e5f500838409c1e39e1ca0714c6a6038fba4d3a5203c9"
+    },
+    "php-best-practices": {
+      "source": "asyrafhussin/agent-skills",
+      "sourceType": "github",
+      "computedHash": "1b25a60572ddd8b206eaf68b067cde70a9d002df572de8fefda703532cecfdad"
+    },
+    "seo-best-practices": {
+      "source": "asyrafhussin/agent-skills",
+      "sourceType": "github",
+      "computedHash": "b54b53580eaf2faf1fe3cc1ccbdd8174b954ae640623e22c01b041f6e5141b4b"
+    }
+  }
+}

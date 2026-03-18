@@ -7,6 +7,7 @@ use App\ShortVideo\Services\MediaProxyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Psr\Http\Message\StreamInterface;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class MediaController extends Controller
@@ -19,7 +20,7 @@ final class MediaController extends Controller
             return response()->json($result['body'] ?? ['error' => 'Unexpected error'], (int) ($result['status'] ?? 500));
         }
 
-        /** @var \Psr\Http\Message\StreamInterface $stream */
+        /** @var StreamInterface $stream */
         $stream = $result['body'];
 
         return response()->stream(

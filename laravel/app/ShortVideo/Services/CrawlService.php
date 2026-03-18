@@ -10,7 +10,7 @@ final class CrawlService
 {
     public function __construct(
         private readonly ShortVideoRepository $repository,
-        private readonly SourceConfigService $sourceConfigService,
+        private readonly SourceSyncService $sourceSyncService,
         private readonly RuntimeStateStore $runtimeStateStore,
         private readonly SidecarClient $sidecarClient
     ) {}
@@ -20,7 +20,7 @@ final class CrawlService
      */
     public function syncConfiguredSources(): array
     {
-        return $this->repository->syncSources($this->sourceConfigService->loadSources());
+        return $this->sourceSyncService->syncConfiguredSources();
     }
 
     /**

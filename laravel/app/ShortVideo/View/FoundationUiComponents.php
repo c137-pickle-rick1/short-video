@@ -2,8 +2,12 @@
 
 namespace App\ShortVideo\View;
 
+use Illuminate\Contracts\View\Factory as ViewFactory;
+
 final class FoundationUiComponents
 {
+    public function __construct(private readonly ViewFactory $views) {}
+
     public function renderButton(
         string $label,
         string $variant = 'primary',
@@ -40,16 +44,15 @@ final class FoundationUiComponents
                 : 'bg-gray-950 text-white hover:bg-gray-800',
         };
 
-        return <<<HTML
-          <button
-            type="{$safeType}"
-            class="inline-flex items-center justify-center gap-2 font-semibold transition {$sizeClass} {$stateClass}"{$disabledAttr}{$busyAttr}
-          >
-            {$spinnerMarkup}
-            {$iconMarkup}
-            <span>{$safeLabel}</span>
-          </button>
-HTML;
+        return $this->renderView('shortvideo.partials.foundation.button', [
+            'type' => $safeType,
+            'className' => trim("inline-flex items-center justify-center gap-2 font-semibold transition {$sizeClass} {$stateClass}"),
+            'disabled' => $disabled || $loading,
+            'loading' => $loading,
+            'iconMarkup' => $iconMarkup,
+            'spinnerMarkup' => $spinnerMarkup,
+            'label' => $label,
+        ]);
     }
 
     public function renderIconButton(
@@ -70,16 +73,11 @@ HTML;
                 : 'border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-950',
         };
 
-        return <<<HTML
-          <button
-            type="button"
-            aria-label="{$safeLabel}"
-            title="{$safeLabel}"
-            class="inline-flex h-12 w-12 items-center justify-center rounded-full transition {$buttonClass}"
-          >
-            <i class="{$safeIcon} text-xl leading-none" aria-hidden="true"></i>
-          </button>
-HTML;
+        return $this->renderView('shortvideo.partials.foundation.icon-button', [
+            'label' => $safeLabel,
+            'icon' => $safeIcon,
+            'buttonClass' => trim("inline-flex h-12 w-12 items-center justify-center rounded-full transition {$buttonClass}"),
+        ]);
     }
 
     public function renderInputField(
@@ -112,37 +110,40 @@ HTML;
         $autofocusAttr = $autofocus ? ' autofocus' : '';
         $errorAttr = $error !== null && $error !== '' ? ' aria-invalid="true"' : '';
         $describedBy = [];
-        $hintMarkup = '';
+        $hintId = null;
         if ($hint !== null && $hint !== '') {
-            $hintId = $inputId !== null ? $safeInputId.'-hint' : '';
+            $hintId = $inputId !== null ? $safeInputId.'-hint' : null;
             $describedBy[] = $hintId;
-            $hintMarkup = '<p'.($hintId !== '' ? ' id="'.$hintId.'"' : '').' class="text-sm leading-6 text-stone-500">'.$this->escape($hint).'</p>';
         }
-        $errorMarkup = '';
+        $errorId = null;
         if ($error !== null && $error !== '') {
-            $errorId = $inputId !== null ? $safeInputId.'-error' : '';
+            $errorId = $inputId !== null ? $safeInputId.'-error' : null;
             $describedBy[] = $errorId;
-            $errorMarkup = '<p'.($errorId !== '' ? ' id="'.$errorId.'"' : '').' class="text-sm font-medium leading-6 text-rose-600">'.$safeError.'</p>';
         }
-        $describedBy = array_values(array_filter($describedBy, static fn (string $id): bool => $id !== ''));
-        $describedByAttr = $describedBy !== [] ? ' aria-describedby="'.$this->escape(implode(' ', $describedBy)).'"' : '';
+        $describedBy = array_values(array_filter($describedBy, static fn (mixed $id): bool => is_string($id) && $id !== ''));
         $inputClass = $error !== null && $error !== ''
             ? 'h-14 rounded-2xl border border-rose-300 bg-rose-50 px-4 text-base text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-rose-400 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400'
             : 'h-14 rounded-2xl border border-stone-200 bg-stone-50 px-4 text-base text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-300 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400';
 
-        return <<<HTML
-          <label class="grid gap-2">
-            <span class="text-sm font-medium text-stone-700">{$safeLabel}</span>
-            <input
-              type="{$safeType}"
-              placeholder="{$safePlaceholder}"
-              autocomplete="{$safeAutocomplete}"{$nameAttr}{$idAttr}{$valueAttr}{$disabledAttr}{$requiredAttr}{$autofocusAttr}{$errorAttr}{$describedByAttr}
-              class="{$inputClass}"
-            />
-            {$hintMarkup}
-            {$errorMarkup}
-          </label>
-HTML;
+        return $this->renderView('shortvideo.partials.foundation.input-field', [
+            'label' => $safeLabel,
+            'type' => $safeType,
+            'placeholder' => $safePlaceholder,
+            'autocomplete' => $safeAutocomplete,
+            'name' => $name !== null ? $safeName : null,
+            'inputId' => $inputId !== null ? $safeInputId : null,
+            'value' => $value !== '' ? $safeValue : null,
+            'disabled' => $disabled,
+            'required' => $required,
+            'autofocus' => $autofocus,
+            'hasError' => $error !== null && $error !== '',
+            'describedBy' => $describedBy !== [] ? implode(' ', $describedBy) : null,
+            'inputClass' => $inputClass,
+            'hint' => $hint,
+            'hintId' => $hintId,
+            'error' => $safeError !== '' ? $safeError : null,
+            'errorId' => $errorId,
+        ]);
     }
 
     /**
@@ -150,47 +151,22 @@ HTML;
      */
     public function renderMenu(string $title, array $items): string
     {
-        $safeTitle = $this->escape($title);
-        $itemsMarkup = implode('', array_map(function (array $item): string {
-            $safeIcon = $this->escape($item['icon']);
-            $safeLabel = $this->escape($item['label']);
-            $description = $item['description'] ?? '';
-            $safeDescription = $this->escape($description);
-            $toneClass = ! empty($item['danger'])
-                ? 'text-rose-600 hover:bg-rose-50'
-                : 'text-gray-700 hover:bg-gray-50';
-            $descriptionMarkup = $description !== ''
-                ? '<p class="mt-1 text-xs leading-5 text-gray-500">'.$safeDescription.'</p>'
-                : '';
-
-            return <<<HTML
-              <button
-                type="button"
-                class="flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition {$toneClass}"
-              >
-                <i class="{$safeIcon} mt-0.5 text-lg leading-none" aria-hidden="true"></i>
-                <span class="block min-w-0">
-                  <span class="block text-sm font-medium">{$safeLabel}</span>
-                  {$descriptionMarkup}
-                </span>
-              </button>
-HTML;
-        }, $items));
-
-        return <<<HTML
-          <section class="w-full max-w-sm rounded-[28px] border border-gray-200 bg-white p-2">
-            <div class="px-3 py-2">
-              <p class="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">{$safeTitle}</p>
-            </div>
-            <div class="grid gap-1">
-              {$itemsMarkup}
-            </div>
-          </section>
-HTML;
+        return $this->renderView('shortvideo.partials.foundation.menu', [
+            'title' => $title,
+            'items' => $items,
+        ]);
     }
 
     private function escape(string $value): string
     {
         return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function renderView(string $view, array $data = []): string
+    {
+        return $this->views->make($view, $data)->render();
     }
 }

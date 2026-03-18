@@ -3,30 +3,33 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\StoreVideoCommentRequest;
+use App\Http\Resources\ShortVideo\VideoCommentCreatedResource;
+use App\Http\Resources\ShortVideo\VideoCommentsResource;
 use App\Models\Video;
 use App\ShortVideo\Auth\CurrentViewerResolver;
-use App\ShortVideo\Repositories\ShortVideoRepository;
+use App\ShortVideo\Repositories\EngagementRepository;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 final class VideoCommentController extends Controller
 {
-    public function index(Video $video, ShortVideoRepository $repository): JsonResponse
+    public function index(Video $video, EngagementRepository $engagement): JsonResponse
     {
-        $comments = $repository->listVideoComments($video->id);
+        $comments = $engagement->listVideoComments($video->id);
 
-        return response()->json([
+        return (new VideoCommentsResource([
             'videoId' => $video->id,
             'items' => $comments,
             'totalCount' => count($comments),
-        ]);
+        ]))->response();
     }
 
     public function store(
-        Request $request,
+        StoreVideoCommentRequest $request,
         Video $video,
         CurrentViewerResolver $currentViewerResolver,
-        ShortVideoRepository $repository
+        EngagementRepository $engagement
     ): JsonResponse {
         $viewer = $currentViewerResolver->resolve($request);
         if (! $viewer) {
@@ -35,25 +38,14 @@ final class VideoCommentController extends Controller
             ], 401);
         }
 
-        $payload = $request->validate([
-            'body' => ['required', 'string', 'min:1', 'max:500'],
-        ], [
-            'body.required' => '评论内容不能为空。',
-            'body.min' => '评论内容不能为空。',
-            'body.max' => '评论内容不能超过 500 个字符。',
-        ]);
+        Gate::forUser($viewer)->authorize('comment', $video);
 
-        $body = trim((string) $payload['body']);
-        if ($body === '') {
-            return response()->json([
-                'message' => '评论内容不能为空。',
-            ], 422);
-        }
+        $body = (string) $request->validated('body');
 
-        return response()->json([
+        return (new VideoCommentCreatedResource([
             'videoId' => $video->id,
-            'item' => $repository->createVideoComment($video->id, $viewer->id, $body),
-            'engagement' => $repository->getVideoEngagementSnapshot($video->id, $viewer->id),
-        ], 201);
+            'item' => $engagement->createVideoComment($video->id, $viewer->id, $body),
+            'engagement' => $engagement->getVideoEngagementSnapshot($video->id, $viewer->id),
+        ]))->response()->setStatusCode(201);
     }
 }
