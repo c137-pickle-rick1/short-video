@@ -6,13 +6,17 @@ export default defineConfig({
     laravel({
       input: [
         "laravel/resources/shortvideo/styles.css",
-        "laravel/resources/js/app.js",
-        "laravel/resources/js/authModal.js",
-        "laravel/resources/js/socialGraph.js",
-        "laravel/resources/js/app/headerLanguageMenu.js",
-        "laravel/resources/js/app/profileEditor.js",
-        "laravel/resources/js/app/profileSocialModal.js",
-        "laravel/resources/js/app/profileVideoUpload.js"
+        "laravel/resources/js/pages/feed/index.js",
+        "laravel/resources/js/pages/bookmarks/index.js",
+        "laravel/resources/js/pages/history/index.js",
+        "laravel/resources/js/pages/interactions/index.js",
+        "laravel/resources/js/pages/auth/modal.js",
+        "laravel/resources/js/pages/auth/login.js",
+        "laravel/resources/js/pages/layout/header-language-menu.js",
+        "laravel/resources/js/features/social/follow-buttons.js",
+        "laravel/resources/js/features/profile/editor.js",
+        "laravel/resources/js/features/profile/social-modal.js",
+        "laravel/resources/js/features/profile/video-upload.js"
       ],
       publicDirectory: "laravel/public",
       buildDirectory: "build",

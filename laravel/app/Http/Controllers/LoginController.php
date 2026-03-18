@@ -4,7 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Auth\LocalAccountService;
 use App\Http\Requests\Auth\LoginRequest;
-use App\ShortVideo\View\LoginPageRenderer;
+use App\ShortVideo\View\AuthViewDataFactory;
+use App\ShortVideo\View\ShellViewDataFactory;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -14,19 +15,26 @@ use Illuminate\Support\Facades\Hash;
 
 final class LoginController extends Controller
 {
-    public function create(Request $request, LoginPageRenderer $renderer): View|RedirectResponse
-    {
+    public function create(
+        Request $request,
+        ShellViewDataFactory $shellViewDataFactory,
+        AuthViewDataFactory $authViewDataFactory
+    ): View|RedirectResponse {
         if (Auth::guard(config('auth.defaults.guard'))->check()) {
             return redirect()->to($this->redirectUrl($request));
         }
 
         return view('shortvideo.login', [
-            'documentHead' => $renderer->renderDocumentHead('登录 | Lagos Explore Feed'),
-            'authModalMarkup' => $renderer->renderAuthModal(
+            'shell' => $shellViewDataFactory->makeStandaloneShell('登录 | Lagos Explore Feed'),
+            'auth' => $authViewDataFactory->makeModalData(
                 initialPanel: 'login',
                 open: true,
                 standalone: true,
+                closeUrl: url('/'),
                 loginFormAction: route('login.store'),
+                registerFormAction: route('register.store'),
+                resetPasswordFormAction: route('password.reset.store'),
+                sendCodeAction: route('auth.email-codes.store'),
                 loginEmailValue: (string) old('email'),
                 loginEmailError: $this->validationError('email'),
                 passwordError: $this->validationError('password'),
