@@ -15,7 +15,8 @@
 <x-shortvideo.layout.app-shell :shell="$shell">
   <div @class([
     'grid gap-0 lg:gap-6 xl:gap-7' => true,
-    'min-h-[calc(100dvh-68px)] grid-rows-[auto_minmax(0,1fr)] sm:min-h-[calc(100dvh-80px)]' => $isSubscriptionsPage && !$hasSelectedSubscriptionsAccount,
+    'min-h-[calc(100dvh-68px)] sm:min-h-[calc(100dvh-80px)]' => $isSubscriptionsPage && !$hasSelectedSubscriptionsAccount,
+    'lg:h-[calc(100dvh-100px)] xl:h-[calc(100dvh-104px)] 2xl:h-[calc(100dvh-108px)]' => ($state ?? null) === 'selection_required',
   ])>
     @if($isSubscriptionsPage && $hasSelectedSubscriptionsAccount)
       <x-shortvideo.layout.navigation-bar
@@ -39,21 +40,21 @@
     <div
     @class([
       'grid min-h-0 gap-0 lg:gap-6 xl:gap-7',
-      'grid-rows-[minmax(0,1fr)]' => $isSubscriptionsPage && ! $hasSelectedSubscriptionsAccount,
+      'h-full' => $isSubscriptionsPage && ! $hasSelectedSubscriptionsAccount,
       'lg:grid-cols-[18rem_minmax(0,1fr)] xl:grid-cols-[19rem_minmax(0,1fr)]' => $hasSubscriptionsFollowList,
     ])
     >
     @if($hasSubscriptionsFollowList)
       <aside @class([
-        'min-w-0 max-lg:min-h-0 lg:sticky lg:top-[100px] 2xl:top-[108px]' => true,
+        'min-w-0 max-lg:min-h-0 lg:sticky lg:top-[100px] lg:self-start xl:top-[104px] 2xl:top-[108px]' => true,
         'max-lg:hidden' => $hasSelectedSubscriptionsAccount,
       ])>
-        <section class="overflow-hidden bg-white max-lg:-mx-3 max-lg:flex max-lg:h-full max-lg:min-h-0 max-lg:flex-col max-lg:border-b max-lg:border-gray-200 sm:max-lg:-mx-4 lg:rounded-[32px] lg:border lg:border-gray-200 lg:shadow-sm">
+        <section class="overflow-hidden bg-white max-lg:-mx-3 max-lg:flex max-lg:h-full max-lg:min-h-0 max-lg:flex-col max-lg:border-b max-lg:border-gray-200 sm:max-lg:-mx-4 lg:flex lg:h-[calc(100dvh-100px)] lg:flex-col lg:rounded-[32px] lg:border lg:border-gray-200 lg:shadow-sm xl:h-[calc(100dvh-104px)] 2xl:h-[calc(100dvh-108px)]">
           <nav
             aria-label="已关注账号"
             data-subscriptions-follow-list="true"
             data-subscriptions-selected-account="{{ $selectedSubscriptionsAccount['username'] ?? '' }}"
-            class="detail-mobile-scroller flex min-h-0 flex-1 flex-col overflow-y-auto pb-24 lg:max-h-[calc(100vh-11rem)] lg:pb-0 2xl:max-h-[calc(100vh-12rem)]"
+            class="detail-mobile-scroller flex min-h-0 flex-1 flex-col overflow-y-auto pb-24 lg:h-full lg:overscroll-contain lg:pb-0"
           >
             @foreach($subscriptionsFollowTabs as $tab)
               <a
