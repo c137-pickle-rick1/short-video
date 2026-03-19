@@ -100,28 +100,6 @@ final class ShellViewDataFactory
             $viewerUsername = trim((string) ($viewer['username'] ?? ''));
 
             $items[] = [
-                'icon' => $activePage === 'history' ? 'ph-fill ph-clock-counter-clockwise' : 'ph ph-clock-counter-clockwise',
-                'label' => '观看记录',
-                'active' => $activePage === 'history',
-                'href' => $this->url->route('viewer.history'),
-                'mobileHidden' => true,
-                'dividerBefore' => true,
-            ];
-            $items[] = [
-                'icon' => $activePage === 'bookmarks' ? 'ph-fill ph-bookmark-simple' : 'ph ph-bookmark-simple',
-                'label' => '我的收藏',
-                'active' => $activePage === 'bookmarks',
-                'href' => $this->url->route('viewer.bookmarks'),
-                'mobileHidden' => true,
-            ];
-            $items[] = [
-                'icon' => $activePage === 'interactions' ? 'ph-fill ph-chat-circle-dots' : 'ph ph-chat-circle-dots',
-                'label' => '我的互动',
-                'active' => $activePage === 'interactions',
-                'href' => $this->url->route('viewer.interactions'),
-                'mobileHidden' => true,
-            ];
-            $items[] = [
                 'icon' => 'ph ph-user-circle',
                 'label' => '我的',
                 'active' => $activePage === 'profile',

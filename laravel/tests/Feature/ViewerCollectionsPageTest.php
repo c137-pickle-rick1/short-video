@@ -19,7 +19,7 @@ final class ViewerCollectionsPageTest extends TestCase
         $this->get('/me/interactions')->assertRedirect('/login');
     }
 
-    public function test_authenticated_viewer_sees_desktop_only_collection_navigation_items_with_divider(): void
+    public function test_authenticated_viewer_does_not_see_collection_entries_in_shell_navigation(): void
     {
         $this->useShortVideoDatabase();
         $viewer = User::factory()->create([
@@ -30,10 +30,10 @@ final class ViewerCollectionsPageTest extends TestCase
         $response = $this->actingAs($viewer)->get('/');
 
         $response->assertOk();
-        $response->assertSee('观看记录', false);
-        $response->assertSee('我的收藏', false);
-        $response->assertSee('我的互动', false);
-        $response->assertSee('mx-6 my-2 h-px bg-gray-200', false);
+        $response->assertDontSee('/me/history', false);
+        $response->assertDontSee('/me/bookmarks', false);
+        $response->assertDontSee('/me/interactions', false);
+        $response->assertDontSee('mx-6 my-2 h-px bg-gray-200', false);
 
         $content = $response->getContent();
         self::assertIsString($content);
@@ -291,10 +291,6 @@ final class ViewerCollectionsPageTest extends TestCase
         $response->assertDontSee('id="feed-grid"', false);
         $response->assertDontSee('id="feed-bootstrap"', false);
         $response->assertDontSee('id="feed-detail-modal"', false);
-
-        $content = $response->getContent();
-        self::assertIsString($content);
-        self::assertMatchesRegularExpression('/<a\b[^>]*aria-current="page"[^>]*>.*?我的收藏.*?<\/a>/s', $content);
     }
 
     public function test_viewer_bookmarks_page_limits_each_page_to_12_records_and_renders_pagination(): void
@@ -432,10 +428,6 @@ final class ViewerCollectionsPageTest extends TestCase
         $response->assertDontSee('id="feed-grid"', false);
         $response->assertDontSee('id="feed-bootstrap"', false);
         $response->assertDontSee('id="feed-detail-modal"', false);
-
-        $content = $response->getContent();
-        self::assertIsString($content);
-        self::assertMatchesRegularExpression('/<a\b[^>]*aria-current="page"[^>]*>.*?我的互动.*?<\/a>/s', $content);
     }
 
     public function test_interactions_page_limits_each_page_to_12_records_and_renders_pagination(): void
