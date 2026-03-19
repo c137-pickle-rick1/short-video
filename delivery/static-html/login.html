@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+<title>&#30331;&#24405; | Lagos Explore Feed</title>
+<link rel="stylesheet" href="assets/vendor/fonts/fonts.css">
+  <link rel="stylesheet" href="assets/vendor/phosphor/regular/style.css">
+  <link rel="stylesheet" href="assets/vendor/phosphor/fill/style.css">
+    
+  <link rel="stylesheet" href="assets/styles.css"></head>
+  <body class="min-h-screen bg-stone-100 text-stone-950 antialiased">
+          
+    
+    <div data-auth-modal="true" data-auth-default-panel="login" data-auth-email-code-action="http://localhost/auth/email-codes" data-auth-close-url="http://localhost" data-auth-modal-start-open="true" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/40 p-4 backdrop-blur-sm sm:p-6">
+  <section data-auth-modal-panel-shell="true" class="relative w-full max-w-xl rounded-[32px] border border-gray-200 bg-white p-6 shadow-glass animate-card-in sm:p-7" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title" tabindex="-1">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <p class="text-sm font-semibold uppercase tracking-[0.18em] text-rose-500">Account</p>
+        <h1 id="auth-modal-title" class="mt-2 text-2xl font-semibold tracking-tight text-gray-950 sm:text-3xl">
+                      &#27426;&#36814;&#22238;&#26469;
+                  </h1>
+        <p class="mt-2 text-sm leading-6 text-gray-500">
+          &#30331;&#24405;&#20351;&#29992;&#37038;&#31665;&#21644;&#23494;&#30721;&#65307;&#27880;&#20876;&#19982;&#24536;&#35760;&#23494;&#30721;&#36890;&#36807;&#37038;&#31665;&#39564;&#35777;&#30721;&#23436;&#25104;&#39564;&#35777;&#12290;
+        </p>
+      </div>
+
+      <button type="button" data-auth-modal-close="true" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 transition hover:border-gray-300 hover:text-gray-950" aria-label="&#20851;&#38381;&#35748;&#35777;&#24377;&#31383;">
+        <i class="ph ph-x text-xl leading-none" aria-hidden="true"></i>
+      </button>
+    </div>
+
+    <div class="mt-6 grid grid-cols-3 gap-2 rounded-full bg-stone-100 p-1">
+              <button type="button" data-auth-tab="true" data-auth-panel-switch="login" class="inline-flex h-11 items-center justify-center rounded-full px-4 text-sm font-semibold transition bg-white text-gray-950 shadow-sm" aria-pressed="true">
+          &#30331;&#24405;
+        </button>
+              <button type="button" data-auth-tab="true" data-auth-panel-switch="register" class="inline-flex h-11 items-center justify-center rounded-full px-4 text-sm font-semibold transition text-gray-500 hover:text-gray-900" aria-pressed="false">
+          &#27880;&#20876;
+        </button>
+              <button type="button" data-auth-tab="true" data-auth-panel-switch="password_reset" class="inline-flex h-11 items-center justify-center rounded-full px-4 text-sm font-semibold transition text-gray-500 hover:text-gray-900" aria-pressed="false">
+          &#24536;&#35760;&#23494;&#30721;
+        </button>
+          </div>
+
+    <div class="mt-6">
+      <section data-auth-panel="login">
+        <div data-auth-status="login" class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 mt-4 hidden" hidden>
+          
+        </div>
+
+        <div data-auth-error="login" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 mt-4 hidden" hidden>
+          
+        </div>
+
+        <div class="mt-6 grid gap-4" data-auth-form="login" data-static-form="true" role="form">
+          <input type="hidden" name="_token" value="CUIXJYJkwdS1mT9fkH9xhCvX8gpKKcW1ppUeqYDL" autocomplete="off">          <label class="grid gap-2">
+  <span class="text-sm font-medium text-stone-700">&#37038;&#31665;</span>
+  <input type="email" placeholder="name@example.com" autocomplete="email" name="email" id="auth-login-email" required autofocus class="h-14 rounded-2xl border border-stone-200 bg-stone-50 px-4 text-base text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-300 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400">
+      <p id="auth-login-email-hint" class="text-sm leading-6 text-stone-500">&#35831;&#36755;&#20837;&#20320;&#27880;&#20876;&#26102;&#20351;&#29992;&#30340;&#37038;&#31665;&#22320;&#22336;&#12290;</p>
+    </label>
+          <label class="grid gap-2">
+  <span class="text-sm font-medium text-stone-700">&#23494;&#30721;</span>
+  <input type="password" placeholder="&#36755;&#20837;&#23494;&#30721;" autocomplete="current-password" name="password" id="auth-login-password" required class="h-14 rounded-2xl border border-stone-200 bg-stone-50 px-4 text-base text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-300 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400">
+    </label>
+          <button type="submit" data-auth-submit="login" class="mt-2 inline-flex h-14 items-center justify-center rounded-2xl bg-gray-950 px-5 text-base font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300">
+            &#30331;&#24405;
+          </button>
+        </div>
+
+        <div class="mt-4 flex justify-end">
+          <button type="button" data-auth-panel-switch="password_reset" class="text-sm font-medium text-rose-500 transition hover:text-rose-600">
+            &#24536;&#35760;&#23494;&#30721;&#65311;
+          </button>
+        </div>
+      </section>
+
+      <section data-auth-panel="register" class="hidden" hidden>
+        <div data-auth-status="register" class="mt-4 hidden rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700" hidden></div>
+        <div data-auth-error="register" class="mt-4 hidden rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700" hidden></div>
+
+        <div class="mt-6 grid gap-4" data-auth-form="register" data-static-form="true" role="form">
+          <input type="hidden" name="_token" value="CUIXJYJkwdS1mT9fkH9xhCvX8gpKKcW1ppUeqYDL" autocomplete="off">          <label class="grid gap-2">
+  <span class="text-sm font-medium text-stone-700">&#37038;&#31665;</span>
+  <input type="email" placeholder="name@example.com" autocomplete="email" name="email" id="auth-register-email" required class="h-14 rounded-2xl border border-stone-200 bg-stone-50 px-4 text-base text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-300 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400">
+      <p id="auth-register-email-hint" class="text-sm leading-6 text-stone-500">&#39564;&#35777;&#30721;&#20250;&#21457;&#36865;&#21040;&#36825;&#20010;&#37038;&#31665;&#65292;60 &#31186;&#20869;&#19981;&#21487;&#37325;&#22797;&#21457;&#36865;&#12290;</p>
+    </label>
+          <button type="button" data-auth-send-code-button="register" class="inline-flex h-12 items-center justify-center rounded-full border border-gray-200 bg-white px-5 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:text-gray-950 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400">
+            &#21457;&#36865;&#39564;&#35777;&#30721;
+          </button>
+          <label class="grid gap-2">
+  <span class="text-sm font-medium text-stone-700">&#37038;&#31665;&#39564;&#35777;&#30721;</span>
+  <input type="text" placeholder="&#36755;&#20837; 6 &#20301;&#39564;&#35777;&#30721;" autocomplete="one-time-code" name="code" id="auth-register-code" required class="h-14 rounded-2xl border border-stone-200 bg-stone-50 px-4 text-base text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-300 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400">
+    </label>
+          <label class="grid gap-2">
+  <span class="text-sm font-medium text-stone-700">&#23494;&#30721;</span>
+  <input type="password" placeholder="&#33267;&#23569; 8 &#20301;&#23494;&#30721;" autocomplete="new-password" name="password" id="auth-register-password" required class="h-14 rounded-2xl border border-stone-200 bg-stone-50 px-4 text-base text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-300 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400">
+    </label>
+          <label class="grid gap-2">
+  <span class="text-sm font-medium text-stone-700">&#30830;&#35748;&#23494;&#30721;</span>
+  <input type="password" placeholder="&#20877;&#27425;&#36755;&#20837;&#23494;&#30721;" autocomplete="new-password" name="password_confirmation" id="auth-register-password-confirmation" required class="h-14 rounded-2xl border border-stone-200 bg-stone-50 px-4 text-base text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-300 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400">
+    </label>
+          <button type="submit" data-auth-submit="register" class="mt-2 inline-flex h-14 items-center justify-center rounded-2xl bg-gray-950 px-5 text-base font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300">
+            &#27880;&#20876;&#24182;&#30331;&#24405;
+          </button>
+        </div>
+      </section>
+
+      <section data-auth-panel="password_reset" class="hidden" hidden>
+        <div data-auth-status="password_reset" class="mt-4 hidden rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700" hidden></div>
+        <div data-auth-error="password_reset" class="mt-4 hidden rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700" hidden></div>
+
+        <div class="mt-6 grid gap-4" data-auth-form="password_reset" data-static-form="true" role="form">
+          <input type="hidden" name="_token" value="CUIXJYJkwdS1mT9fkH9xhCvX8gpKKcW1ppUeqYDL" autocomplete="off">          <label class="grid gap-2">
+  <span class="text-sm font-medium text-stone-700">&#37038;&#31665;</span>
+  <input type="email" placeholder="name@example.com" autocomplete="email" name="email" id="auth-reset-email" required class="h-14 rounded-2xl border border-stone-200 bg-stone-50 px-4 text-base text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-300 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400">
+      <p id="auth-reset-email-hint" class="text-sm leading-6 text-stone-500">&#36755;&#20837;&#24050;&#27880;&#20876;&#37038;&#31665;&#21518;&#21457;&#36865;&#39564;&#35777;&#30721;&#12290;</p>
+    </label>
+          <button type="button" data-auth-send-code-button="password_reset" class="inline-flex h-12 items-center justify-center rounded-full border border-gray-200 bg-white px-5 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:text-gray-950 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400">
+            &#21457;&#36865;&#39564;&#35777;&#30721;
+          </button>
+          <label class="grid gap-2">
+  <span class="text-sm font-medium text-stone-700">&#37038;&#31665;&#39564;&#35777;&#30721;</span>
+  <input type="text" placeholder="&#36755;&#20837; 6 &#20301;&#39564;&#35777;&#30721;" autocomplete="one-time-code" name="code" id="auth-reset-code" required class="h-14 rounded-2xl border border-stone-200 bg-stone-50 px-4 text-base text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-300 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400">
+    </label>
+          <label class="grid gap-2">
+  <span class="text-sm font-medium text-stone-700">&#26032;&#23494;&#30721;</span>
+  <input type="password" placeholder="&#33267;&#23569; 8 &#20301;&#23494;&#30721;" autocomplete="new-password" name="password" id="auth-reset-password" required class="h-14 rounded-2xl border border-stone-200 bg-stone-50 px-4 text-base text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-300 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400">
+    </label>
+          <label class="grid gap-2">
+  <span class="text-sm font-medium text-stone-700">&#30830;&#35748;&#26032;&#23494;&#30721;</span>
+  <input type="password" placeholder="&#20877;&#27425;&#36755;&#20837;&#26032;&#23494;&#30721;" autocomplete="new-password" name="password_confirmation" id="auth-reset-password-confirmation" required class="h-14 rounded-2xl border border-stone-200 bg-stone-50 px-4 text-base text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-300 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400">
+    </label>
+          <button type="submit" data-auth-submit="password_reset" class="mt-2 inline-flex h-14 items-center justify-center rounded-2xl bg-gray-950 px-5 text-base font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300">
+            &#37325;&#32622;&#23494;&#30721;
+          </button>
+        </div>
+      </section>
+    </div>
+  </section>
+</div>
+    
+    
+
+    
+    
+  </body>
+</html>

@@ -8,6 +8,8 @@
     "db:migrate": "cd laravel && php artisan migrate --force",
     "dev": "concurrently -k -n php,vite \"npm:php:dev\" \"npm:vite:dev\"",
     "build": "vite build",
+    "export:static": "php delivery/static-html/export.php",
+    "preview:static": "php -S 127.0.0.1:8765 -t delivery/static-html",
     "crawl:once": "npm run php:crawl:once",
     "resolve:pending": "npm run php:resolve:pending",
     "backfill:avatars": "npm run php:backfill:avatars",

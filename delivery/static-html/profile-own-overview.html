@@ -1,0 +1,736 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+<title>&#20010;&#20154;&#20013;&#24515; &middot; Lagos Explore Feed</title>
+<link rel="stylesheet" href="assets/vendor/fonts/fonts.css">
+  <link rel="stylesheet" href="assets/vendor/phosphor/regular/style.css">
+  <link rel="stylesheet" href="assets/vendor/phosphor/fill/style.css">
+    
+  <link rel="stylesheet" href="assets/styles.css"></head>
+  <body class="overflow-x-hidden bg-white text-gray-900 antialiased">
+          <main class="relative z-10">
+                  <header class="fixed inset-x-0 top-0 z-40 w-full border-b border-gray-200 bg-white/95 backdrop-blur-xl">
+  <div class="mx-auto flex w-full max-w-screen-2xl items-center gap-3 px-3 py-3 sm:gap-4 sm:px-4 sm:py-4 lg:gap-5 lg:px-5 lg:py-4 xl:gap-6 xl:px-6 xl:py-4 2xl:gap-7 2xl:px-7 2xl:py-4">
+    <div class="shrink-0">
+      <div class="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-gray-100 sm:h-12 sm:w-12">
+        <span class="h-2.5 w-2.5 rounded-full bg-gray-900"></span>
+      </div>
+    </div>
+    <div role="search" class="mx-auto flex h-11 w-full min-w-0 max-w-[480px] items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 sm:h-12 sm:gap-3 sm:px-4" data-static-form="true">
+      <button type="submit" class="text-base text-gray-500 transition hover:text-gray-700" aria-label="&#25628;&#32034;">
+        <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+      </button>
+      <input type="search" name="q" value="" placeholder="&#25628;&#32034;&#35270;&#39057;&#12289;&#20316;&#32773;&#25110;&#20851;&#38190;&#35789;" class="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400" autocomplete="off">
+    </div>
+    <div class="flex shrink-0 items-center gap-2 sm:gap-3">
+      <div class="relative" data-language-menu="true">
+        <button type="button" data-language-menu-trigger="true" aria-label="&#20999;&#25442;&#35821;&#35328;" aria-haspopup="menu" aria-expanded="false" aria-controls="header-language-menu-01KM2W6SMEBRV99S6B469ZY6AQ" title="&#20999;&#25442;&#35821;&#35328;" class="inline-flex h-11 max-w-[9.5rem] items-center gap-2 rounded-full border border-gray-200 bg-white px-3 text-[15px] font-medium text-gray-700 transition hover:border-gray-300 hover:text-gray-900 sm:h-12 sm:max-w-[11rem] sm:px-4">
+          <i class="ph ph-globe text-base leading-none text-gray-500" aria-hidden="true"></i>
+          <span data-language-menu-current-label="true" class="min-w-0 flex-1 truncate">&#31616;&#20307;&#20013;&#25991;</span>
+          <i class="ph ph-caret-down text-base leading-none text-gray-500 transition duration-200" data-language-menu-chevron="true" aria-hidden="true"></i>
+        </button>
+
+        <section id="header-language-menu-01KM2W6SMEBRV99S6B469ZY6AQ" data-language-menu-panel="true" class="absolute right-0 top-full z-50 mt-3 hidden min-w-[15rem] max-w-[18rem] overflow-hidden rounded-[28px] border border-gray-200 bg-white p-2 shadow-glass" role="menu" aria-label="&#35821;&#35328;&#33756;&#21333;" aria-hidden="true" hidden>
+          <div class="grid gap-1">
+                          <button type="button" data-language-menu-item="true" data-language-label="&#31616;&#20307;&#20013;&#25991;" data-current="true" class="flex w-full items-center justify-between gap-4 rounded-2xl px-4 py-3 text-left text-[15px] transition hover:bg-gray-50 focus-visible:bg-gray-50 focus-visible:outline-none font-semibold text-gray-900" role="menuitemradio" aria-checked="true">
+                <span class="min-w-0 truncate">&#31616;&#20307;&#20013;&#25991;</span>
+                <span data-language-menu-check="true" class="text-lg leading-none text-gray-900" aria-hidden="true">
+                  <i class="ph ph-check"></i>
+                </span>
+              </button>
+                          <button type="button" data-language-menu-item="true" data-language-label="English" data-current="false" class="flex w-full items-center justify-between gap-4 rounded-2xl px-4 py-3 text-left text-[15px] transition hover:bg-gray-50 focus-visible:bg-gray-50 focus-visible:outline-none font-normal text-gray-700" role="menuitemradio" aria-checked="false">
+                <span class="min-w-0 truncate">English</span>
+                <span data-language-menu-check="true" class="text-lg leading-none text-gray-900 hidden" aria-hidden="true" hidden>
+                  <i class="ph ph-check"></i>
+                </span>
+              </button>
+                          <button type="button" data-language-menu-item="true" data-language-label="&#26085;&#26412;&#35486;" data-current="false" class="flex w-full items-center justify-between gap-4 rounded-2xl px-4 py-3 text-left text-[15px] transition hover:bg-gray-50 focus-visible:bg-gray-50 focus-visible:outline-none font-normal text-gray-700" role="menuitemradio" aria-checked="false">
+                <span class="min-w-0 truncate">&#26085;&#26412;&#35486;</span>
+                <span data-language-menu-check="true" class="text-lg leading-none text-gray-900 hidden" aria-hidden="true" hidden>
+                  <i class="ph ph-check"></i>
+                </span>
+              </button>
+                          <button type="button" data-language-menu-item="true" data-language-label="&#54620;&#44397;&#50612;" data-current="false" class="flex w-full items-center justify-between gap-4 rounded-2xl px-4 py-3 text-left text-[15px] transition hover:bg-gray-50 focus-visible:bg-gray-50 focus-visible:outline-none font-normal text-gray-700" role="menuitemradio" aria-checked="false">
+                <span class="min-w-0 truncate">&#54620;&#44397;&#50612;</span>
+                <span data-language-menu-check="true" class="text-lg leading-none text-gray-900 hidden" aria-hidden="true" hidden>
+                  <i class="ph ph-check"></i>
+                </span>
+              </button>
+                      </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</header>
+
+                      <div class="h-[68px] sm:h-20" aria-hidden="true"></div>
+                  
+        <div class="mx-auto w-full max-w-screen-2xl">
+          <div class="flex flex-col gap-3 p-3 sm:gap-4 sm:p-4 lg:gap-5 lg:p-5 xl:gap-6 xl:p-6 2xl:gap-7 2xl:p-7 lg:flex-row lg:items-start">
+                          <aside class="hidden lg:block lg:sticky lg:top-[100px] lg:w-56 lg:flex-none xl:top-[104px] 2xl:top-[108px]">
+  <nav aria-label="&#26700;&#38754;&#20027;&#23548;&#33322;">
+    <div class="grid gap-2">
+              <a href="index.html" class="inline-flex h-12 w-full items-center gap-4 rounded-full px-6 text-left transition-colors text-lg font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-900">
+  <i class="ph ph-sparkle text-2xl leading-none" aria-hidden="true"></i>
+  <span>&#31934;&#36873;</span>
+</a>
+              <a href="explore.html" class="inline-flex h-12 w-full items-center gap-4 rounded-full px-6 text-left transition-colors text-lg font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-900">
+  <i class="ph ph-compass text-2xl leading-none" aria-hidden="true"></i>
+  <span>&#25506;&#32034;</span>
+</a>
+              <a href="rankings.html" class="inline-flex h-12 w-full items-center gap-4 rounded-full px-6 text-left transition-colors text-lg font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-900">
+  <i class="ph ph-chart-bar text-2xl leading-none" aria-hidden="true"></i>
+  <span>&#27036;&#21333;</span>
+</a>
+              <a href="subscriptions-selection.html" class="inline-flex h-12 w-full items-center gap-4 rounded-full px-6 text-left transition-colors text-lg font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-900">
+  <i class="ph ph-users-three text-2xl leading-none" aria-hidden="true"></i>
+  <span>&#20851;&#27880;</span>
+</a>
+              <a href="profile-own-overview.html" aria-current="page" class="inline-flex h-12 w-full items-center gap-4 rounded-full px-6 text-left transition-colors bg-gray-100 text-lg font-semibold text-gray-900 hover:bg-gray-200">
+  <span class="shrink-0" data-avatar-slot="nav" data-avatar-kind="nav" data-avatar-initial="D" data-avatar-url="/avatars/19/b9cd6788-e377-488b-8675-d2ded40774b6.png">
+    <img class="size-6 rounded-full object-cover ring-1 ring-gray-200" src="assets/avatars/19/b9cd6788-e377-488b-8675-d2ded40774b6.png" alt=" &#30340;&#22836;&#20687;" loading="lazy" referrerpolicy="no-referrer">
+  </span>
+  <span>&#25105;&#30340;</span>
+</a>
+          </div>
+  </nav>
+</aside>
+              <nav aria-label="&#31227;&#21160;&#20027;&#23548;&#33322;" class="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white/95 px-0 pt-1 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] backdrop-blur-2xl lg:hidden">
+  <div class="mx-auto grid w-full max-w-[26.25rem] items-stretch" style="grid-template-columns: repeat(5, minmax(0, 1fr));">
+          <a href="index.html" class="flex min-h-[52px] flex-col items-center justify-start gap-0.5 px-1 pt-1.5 pb-1 text-center text-gray-500">
+  <i class="ph ph-sparkle text-2xl leading-none" aria-hidden="true"></i>
+  <span class="max-w-full whitespace-nowrap text-[10px] font-medium leading-[1.2]">
+    &#31934;&#36873;
+  </span>
+</a>
+          <a href="explore.html" class="flex min-h-[52px] flex-col items-center justify-start gap-0.5 px-1 pt-1.5 pb-1 text-center text-gray-500">
+  <i class="ph ph-compass text-2xl leading-none" aria-hidden="true"></i>
+  <span class="max-w-full whitespace-nowrap text-[10px] font-medium leading-[1.2]">
+    &#25506;&#32034;
+  </span>
+</a>
+          <a href="rankings.html" class="flex min-h-[52px] flex-col items-center justify-start gap-0.5 px-1 pt-1.5 pb-1 text-center text-gray-500">
+  <i class="ph ph-chart-bar text-2xl leading-none" aria-hidden="true"></i>
+  <span class="max-w-full whitespace-nowrap text-[10px] font-medium leading-[1.2]">
+    &#27036;&#21333;
+  </span>
+</a>
+          <a href="subscriptions-selection.html" class="flex min-h-[52px] flex-col items-center justify-start gap-0.5 px-1 pt-1.5 pb-1 text-center text-gray-500">
+  <i class="ph ph-users-three text-2xl leading-none" aria-hidden="true"></i>
+  <span class="max-w-full whitespace-nowrap text-[10px] font-medium leading-[1.2]">
+    &#20851;&#27880;
+  </span>
+</a>
+          <a href="profile-own-overview.html" aria-current="page" class="flex min-h-[52px] flex-col items-center justify-start gap-0.5 px-1 pt-1.5 pb-1 text-center text-gray-900">
+  <span class="shrink-0" data-avatar-slot="nav" data-avatar-kind="nav" data-avatar-initial="D" data-avatar-url="/avatars/19/b9cd6788-e377-488b-8675-d2ded40774b6.png">
+    <img class="size-6 rounded-full object-cover ring-1 ring-gray-200" src="assets/avatars/19/b9cd6788-e377-488b-8675-d2ded40774b6.png" alt=" &#30340;&#22836;&#20687;" loading="lazy" referrerpolicy="no-referrer">
+  </span>
+  <span class="max-w-full whitespace-nowrap text-[10px] font-medium leading-[1.2]">
+    &#25105;&#30340;
+  </span>
+</a>
+      </div>
+</nav>
+            
+            <section class="min-w-0 flex-1">
+              <div class="grid gap-0 lg:gap-6 xl:gap-7">
+    
+          <div class="grid min-h-0 gap-0 lg:gap-6 xl:gap-7 lg:grid-cols-[19rem_minmax(0,1fr)] xl:grid-cols-[20rem_minmax(0,1fr)]">
+        <aside class="min-w-0 max-lg:min-h-0 lg:sticky lg:top-[100px] 2xl:top-[108px]">
+          <section class="overflow-hidden bg-white max-lg:-mx-3 max-lg:flex max-lg:h-full max-lg:min-h-0 max-lg:flex-col max-lg:border-b max-lg:border-gray-200 sm:max-lg:-mx-4 lg:rounded-[32px] lg:border lg:border-gray-200 lg:shadow-sm">
+            <nav aria-label="&#20010;&#20154;&#20013;&#24515;&#23548;&#33322;" data-profile-dashboard-nav="true" data-profile-dashboard-selected-panel="profile" class="detail-mobile-scroller flex min-h-0 flex-1 flex-col overflow-y-auto pb-24 lg:max-h-[calc(100vh-11rem)] lg:pb-0 2xl:max-h-[calc(100vh-12rem)]">
+                              
+                                  <a href="profile-own-overview.html" data-profile-dashboard-item="profile" data-active="true" aria-current="page" class="group flex w-full items-start gap-4 border-b border-gray-200 px-5 py-5 text-left transition lg:px-6 bg-gray-100">
+                    <img class="h-14 w-14 rounded-full object-cover ring-1 ring-gray-200" src="assets/avatars/19/b9cd6788-e377-488b-8675-d2ded40774b6.png" alt="demo.viewer &#30340;&#22836;&#20687;" loading="lazy" referrerpolicy="no-referrer">
+
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-base font-semibold text-gray-950">demo.viewer</p>
+                      <p class="mt-1 truncate text-sm font-medium text-gray-500">@user_vbwy5lipgn22</p>
+                      <div class="mt-3 flex flex-wrap items-center gap-4 text-xs font-medium text-gray-500">
+                        <span class="inline-flex items-center gap-1.5">
+                          <span class="text-sm font-semibold text-gray-950">11</span>
+                          &#20851;&#27880;
+                        </span>
+                        <span class="inline-flex items-center gap-1.5">
+                          <span class="text-sm font-semibold text-gray-950">3</span>
+                          &#31881;&#19997;
+                        </span>
+                      </div>
+                    </div>
+                  </a>
+                                              
+                                  <a href="profile-own-creator.html" data-profile-dashboard-item="creator" data-active="false" aria-current="false" class="group flex w-full items-center gap-4 px-5 py-4 text-left transition lg:px-6 text-gray-900 hover:bg-gray-50 border-b border-gray-200">
+                    <span class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-700">
+                      <i class="ph ph-video-camera text-lg leading-none" aria-hidden="true"></i>
+                    </span>
+
+                    <span class="min-w-0 flex-1">
+                      <span class="block truncate text-sm font-semibold text-gray-950">&#21019;&#20316;&#32773;&#20013;&#24515;</span>
+                      <span class="mt-1 block truncate text-xs text-gray-500">&#31649;&#29702;&#19978;&#20256;&#20869;&#23481;&#21644;&#35270;&#39057;&#29366;&#24577;</span>
+                    </span>
+                  </a>
+                                              
+                                  <a href="profile-own-history.html" data-profile-dashboard-item="history" data-active="false" aria-current="false" class="group flex w-full items-center gap-4 px-5 py-4 text-left transition lg:px-6 text-gray-900 hover:bg-gray-50 border-b border-gray-200">
+                    <span class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-700">
+                      <i class="ph ph-clock-counter-clockwise text-lg leading-none" aria-hidden="true"></i>
+                    </span>
+
+                    <span class="min-w-0 flex-1">
+                      <span class="block truncate text-sm font-semibold text-gray-950">&#35266;&#30475;&#35760;&#24405;</span>
+                      <span class="mt-1 block truncate text-xs text-gray-500">&#26597;&#30475;&#26368;&#36817;&#27983;&#35272;&#36807;&#30340;&#35270;&#39057;</span>
+                    </span>
+                  </a>
+                                              
+                                  <a href="profile-own-bookmarks.html" data-profile-dashboard-item="bookmarks" data-active="false" aria-current="false" class="group flex w-full items-center gap-4 px-5 py-4 text-left transition lg:px-6 text-gray-900 hover:bg-gray-50 border-b border-gray-200">
+                    <span class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-700">
+                      <i class="ph ph-bookmark-simple text-lg leading-none" aria-hidden="true"></i>
+                    </span>
+
+                    <span class="min-w-0 flex-1">
+                      <span class="block truncate text-sm font-semibold text-gray-950">&#25105;&#30340;&#25910;&#34255;</span>
+                      <span class="mt-1 block truncate text-xs text-gray-500">&#31649;&#29702;&#20445;&#23384;&#19979;&#26469;&#30340;&#35270;&#39057;</span>
+                    </span>
+                  </a>
+                                              
+                                  <a href="profile-own-interactions.html" data-profile-dashboard-item="interactions" data-active="false" aria-current="false" class="group flex w-full items-center gap-4 px-5 py-4 text-left transition lg:px-6 text-gray-900 hover:bg-gray-50 border-b border-gray-200">
+                    <span class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-700">
+                      <i class="ph ph-chat-circle-dots text-lg leading-none" aria-hidden="true"></i>
+                    </span>
+
+                    <span class="min-w-0 flex-1">
+                      <span class="block truncate text-sm font-semibold text-gray-950">&#25105;&#30340;&#20114;&#21160;</span>
+                      <span class="mt-1 block truncate text-xs text-gray-500">&#26597;&#30475;&#28857;&#36190;&#21644;&#35780;&#35770;&#35760;&#24405;</span>
+                    </span>
+                  </a>
+                                              
+                                  <div class="border-t border-gray-200" data-static-form="true" role="form">
+                    <input type="hidden" name="_token" value="CUIXJYJkwdS1mT9fkH9xhCvX8gpKKcW1ppUeqYDL" autocomplete="off">                    <button type="submit" data-profile-dashboard-item="logout" class="group flex w-full items-center gap-4 px-5 py-4 text-left text-gray-900 transition hover:bg-gray-50 lg:px-6">
+                      <span class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-700 transition group-hover:bg-white">
+                        <i class="ph ph-sign-out text-lg leading-none" aria-hidden="true"></i>
+                      </span>
+
+                      <span class="min-w-0 flex-1">
+                        <span class="block truncate text-sm font-semibold text-gray-950">&#36864;&#20986;&#30331;&#24405;</span>
+                        <span class="mt-1 block truncate text-xs text-gray-500">&#31435;&#21363;&#36864;&#20986;&#24403;&#21069;&#36134;&#21495;</span>
+                      </span>
+                    </button>
+                  </div>
+                                          </nav>
+          </section>
+        </aside>
+
+        <div class="min-w-0 grid gap-5 lg:gap-6 xl:gap-7 hidden lg:grid">
+                      <section data-profile-dashboard-detail="profile" class="overflow-hidden rounded-[32px] border border-gray-200 bg-gradient-to-br from-stone-50 via-white to-sky-50/60 shadow-sm">
+              <div class="grid gap-8 px-5 py-6 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
+                <div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                  <div class="flex min-w-0 items-center gap-4 sm:gap-5">
+                    <div class="shrink-0">
+                      <span data-avatar-slot="profile" data-avatar-kind="profile" data-avatar-label="demo.viewer" data-avatar-initial="D" data-avatar-url="/avatars/19/b9cd6788-e377-488b-8675-d2ded40774b6.png" class="block">
+                        <img class="h-20 w-20 sm:h-24 sm:w-24 rounded-full object-cover ring-1 ring-gray-200" src="assets/avatars/19/b9cd6788-e377-488b-8675-d2ded40774b6.png" alt="demo.viewer &#30340;&#22836;&#20687;" loading="lazy" referrerpolicy="no-referrer">
+                      </span>
+                    </div>
+
+                    <div class="min-w-0">
+                      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Profile</p>
+                      <div class="mt-2 flex flex-wrap items-center gap-3 sm:gap-4">
+                        <h2 data-profile-name="true" class="min-w-0 flex-1 truncate text-2xl font-semibold tracking-tight text-gray-950 sm:text-3xl">
+                          demo.viewer
+                        </h2>
+
+                        <button type="button" data-profile-editor-trigger="true" aria-haspopup="dialog" aria-controls="profile-editor-dialog" class="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:text-gray-950">
+                          <i class="ph ph-pencil-simple text-base leading-none" aria-hidden="true"></i>
+                          &#32534;&#36753;&#36164;&#26009;
+                        </button>
+                      </div>
+
+                      <p class="mt-2 truncate text-sm font-medium text-gray-500">@user_vbwy5lipgn22</p>
+                      <div data-profile-stats="true" class="mt-3 flex flex-wrap items-center gap-3 text-sm font-medium text-gray-500 sm:text-base">
+                        <button type="button" data-profile-social-trigger="following" class="inline-flex items-center gap-2 rounded-full transition hover:text-gray-950">
+                          <span>&#20851;&#27880;</span>
+                          <span data-profile-following-count="true" class="text-gray-950">11</span>
+                        </button>
+                        <span class="text-gray-300" aria-hidden="true">|</span>
+                        <button type="button" data-profile-social-trigger="followers" class="inline-flex items-center gap-2 rounded-full transition hover:text-gray-950">
+                          <span>&#31881;&#19997;</span>
+                          <span data-profile-follower-count="true" class="text-gray-950">3</span>
+                        </button>
+                      </div>
+                      <p data-profile-bio="true" class="mt-3 max-w-2xl text-sm leading-7 text-gray-600 hidden" hidden></p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid gap-4 rounded-[28px] border border-gray-200/80 bg-white/80 p-5 sm:p-6">
+                  <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Profile Card</p>
+                    <h3 class="mt-2 text-lg font-semibold tracking-tight text-gray-950">
+                      &#20010;&#20154;&#36164;&#26009;&#21345;&#29255;
+                    </h3>
+                    <p class="mt-2 max-w-2xl text-sm leading-7 text-gray-500">
+                      &#26597;&#30475;&#24182;&#32534;&#36753;&#20320;&#30340;&#36134;&#21495;&#36164;&#26009;&#12289;&#20851;&#27880;&#20851;&#31995;&#21644;&#31616;&#20171;&#12290;
+                    </p>
+                  </div>
+
+                  <div class="grid gap-3 sm:grid-cols-2">
+                    <button type="button" data-profile-social-trigger="following" class="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-4 text-left transition hover:border-gray-300">
+                      <span>
+                        <span class="block text-sm font-semibold text-gray-950">&#25105;&#20851;&#27880;&#30340;&#20154;</span>
+                        <span class="mt-1 block text-xs text-gray-500">&#36827;&#20837;&#21015;&#34920;&#26597;&#30475;&#24050;&#20851;&#27880;&#36134;&#21495;</span>
+                      </span>
+                      <span class="text-sm font-semibold text-gray-950">11</span>
+                    </button>
+
+                    <button type="button" data-profile-social-trigger="followers" class="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-4 text-left transition hover:border-gray-300">
+                      <span>
+                        <span class="block text-sm font-semibold text-gray-950">&#20851;&#27880;&#25105;&#30340;&#20154;</span>
+                        <span class="mt-1 block text-xs text-gray-500">&#36827;&#20837;&#21015;&#34920;&#26597;&#30475;&#31881;&#19997;&#36134;&#21495;</span>
+                      </span>
+                      <span class="text-sm font-semibold text-gray-950">3</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+                  </div>
+      </div>
+      </div>
+            </section>
+          </div>
+
+                      <div class="h-24 lg:hidden" aria-hidden="true"></div>
+                  </div>
+      </main>
+    
+    <div data-profile-social-modal="true" class="fixed inset-0 z-50 hidden flex items-center justify-center overflow-y-auto bg-gray-950/40 p-4 backdrop-blur-sm sm:p-6" hidden>
+    <div class="flex min-h-full w-full items-start justify-center py-4 sm:items-center sm:py-6">
+      <section data-profile-social-panel="true" class="relative flex min-h-0 max-h-[min(82vh,760px)] w-full max-w-3xl flex-col overflow-hidden rounded-[32px] border border-gray-200 bg-white shadow-glass animate-card-in" role="dialog" aria-modal="true" aria-labelledby="profile-social-modal-title" tabindex="-1">
+        <button type="button" data-profile-social-close="true" class="absolute right-5 top-5 inline-flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 transition hover:border-gray-300 hover:text-gray-950 sm:right-6 sm:top-6" aria-label="&#20851;&#38381;&#20851;&#27880;&#21015;&#34920;&#24377;&#31383;">
+          <i class="ph ph-x text-xl leading-none" aria-hidden="true"></i>
+        </button>
+
+        <div class="border-b border-gray-200 px-6 pt-7 sm:px-7 sm:pt-8">
+          <div class="flex flex-wrap items-end gap-5 sm:gap-6">
+                                        <button type="button" data-profile-social-tab-button="following" data-active="true" class="relative pb-4 text-left text-xl font-semibold tracking-tight transition sm:text-2xl text-gray-950">
+                <span class="absolute inset-x-0 bottom-0 h-1 rounded-full bg-rose-500" aria-hidden="true"></span>
+                <span id="profile-social-modal-title">&#20851;&#27880; (11)</span>
+              </button>
+                                        <button type="button" data-profile-social-tab-button="followers" data-active="false" class="relative pb-4 text-left text-xl font-semibold tracking-tight transition sm:text-2xl text-gray-400 hover:text-gray-700">
+                <span class="absolute inset-x-0 bottom-0 h-1 rounded-full bg-rose-500" hidden aria-hidden="true"></span>
+                <span id="">&#31881;&#19997; (3)</span>
+              </button>
+                      </div>
+        </div>
+
+        <div class="min-h-0 flex flex-1 flex-col overflow-hidden">
+                                  <div data-profile-social-tab-panel="following" data-active="true" class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-6 sm:px-7 sm:py-7">
+                              <div class="divide-y divide-gray-200">
+                                      <article class="flex items-center justify-between gap-4 py-5 first:pt-0 last:pb-0">
+  <div class="flex min-w-0 items-center gap-4">
+    <div class="shrink-0">
+      <img class="h-14 w-14 rounded-full object-cover ring-1 ring-gray-200" src="https://pbs.twimg.com/profile_images/1924965787514601472/3YXfkLv1_400x400.jpg" alt="@77sunnyx &#30340;&#22836;&#20687;" loading="lazy" referrerpolicy="no-referrer">
+    </div>
+
+    <div class="min-w-0">
+      <p class="truncate text-xl font-semibold text-gray-950">@77sunnyx</p>
+      <p class="mt-1 truncate text-sm text-gray-400">@77sunnyx</p>
+          </div>
+  </div>
+
+  <div class="shrink-0">
+    <button type="button" class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition border border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200" data-author-follow-button="true" data-author-user-id="12" data-base-class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition" data-following="true" data-enabled="true" data-loading="false" data-label-follow="&#20851;&#27880;" data-label-following="&#24050;&#20851;&#27880;" data-label-disabled="&#26242;&#19981;&#21487;&#20851;&#27880;" data-reload-on-success="false" aria-pressed="true">
+        &#24050;&#20851;&#27880;
+    </button>
+  </div>
+</article>
+                                      <article class="flex items-center justify-between gap-4 py-5 first:pt-0 last:pb-0">
+  <div class="flex min-w-0 items-center gap-4">
+    <div class="shrink-0">
+      <img class="h-14 w-14 rounded-full object-cover ring-1 ring-gray-200" src="https://pbs.twimg.com/profile_images/1347830166152744960/MswfNm6h_400x400.jpg" alt="@spicyguml &#30340;&#22836;&#20687;" loading="lazy" referrerpolicy="no-referrer">
+    </div>
+
+    <div class="min-w-0">
+      <p class="truncate text-xl font-semibold text-gray-950">@spicyguml</p>
+      <p class="mt-1 truncate text-sm text-gray-400">@spicyguml</p>
+          </div>
+  </div>
+
+  <div class="shrink-0">
+    <button type="button" class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition border border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200" data-author-follow-button="true" data-author-user-id="17" data-base-class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition" data-following="true" data-enabled="true" data-loading="false" data-label-follow="&#20851;&#27880;" data-label-following="&#24050;&#20851;&#27880;" data-label-disabled="&#26242;&#19981;&#21487;&#20851;&#27880;" data-reload-on-success="false" aria-pressed="true">
+        &#24050;&#20851;&#27880;
+    </button>
+  </div>
+</article>
+                                      <article class="flex items-center justify-between gap-4 py-5 first:pt-0 last:pb-0">
+  <div class="flex min-w-0 items-center gap-4">
+    <div class="shrink-0">
+      <img class="h-14 w-14 rounded-full object-cover ring-1 ring-gray-200" src="https://pbs.twimg.com/profile_images/1960477159538978816/XKNCPjo__400x400.jpg" alt="@alexmucci_ &#30340;&#22836;&#20687;" loading="lazy" referrerpolicy="no-referrer">
+    </div>
+
+    <div class="min-w-0">
+      <p class="truncate text-xl font-semibold text-gray-950">@alexmucci_</p>
+      <p class="mt-1 truncate text-sm text-gray-400">@alexmucci</p>
+          </div>
+  </div>
+
+  <div class="shrink-0">
+    <button type="button" class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition border border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200" data-author-follow-button="true" data-author-user-id="4" data-base-class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition" data-following="true" data-enabled="true" data-loading="false" data-label-follow="&#20851;&#27880;" data-label-following="&#24050;&#20851;&#27880;" data-label-disabled="&#26242;&#19981;&#21487;&#20851;&#27880;" data-reload-on-success="false" aria-pressed="true">
+        &#24050;&#20851;&#27880;
+    </button>
+  </div>
+</article>
+                                      <article class="flex items-center justify-between gap-4 py-5 first:pt-0 last:pb-0">
+  <div class="flex min-w-0 items-center gap-4">
+    <div class="shrink-0">
+      <img class="h-14 w-14 rounded-full object-cover ring-1 ring-gray-200" src="https://pbs.twimg.com/profile_images/1539063906194554881/oa1pTw_K_400x400.jpg" alt="@haikesii &#30340;&#22836;&#20687;" loading="lazy" referrerpolicy="no-referrer">
+    </div>
+
+    <div class="min-w-0">
+      <p class="truncate text-xl font-semibold text-gray-950">@haikesii</p>
+      <p class="mt-1 truncate text-sm text-gray-400">@haikesii</p>
+          </div>
+  </div>
+
+  <div class="shrink-0">
+    <button type="button" class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition border border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200" data-author-follow-button="true" data-author-user-id="6" data-base-class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition" data-following="true" data-enabled="true" data-loading="false" data-label-follow="&#20851;&#27880;" data-label-following="&#24050;&#20851;&#27880;" data-label-disabled="&#26242;&#19981;&#21487;&#20851;&#27880;" data-reload-on-success="false" aria-pressed="true">
+        &#24050;&#20851;&#27880;
+    </button>
+  </div>
+</article>
+                                      <article class="flex items-center justify-between gap-4 py-5 first:pt-0 last:pb-0">
+  <div class="flex min-w-0 items-center gap-4">
+    <div class="shrink-0">
+      <img class="h-14 w-14 rounded-full object-cover ring-1 ring-gray-200" src="https://pbs.twimg.com/profile_images/1990441276307861505/hjrfDlKc_400x400.jpg" alt="@tangyuan_269 &#30340;&#22836;&#20687;" loading="lazy" referrerpolicy="no-referrer">
+    </div>
+
+    <div class="min-w-0">
+      <p class="truncate text-xl font-semibold text-gray-950">@tangyuan_269</p>
+      <p class="mt-1 truncate text-sm text-gray-400">@tangyuan_269</p>
+          </div>
+  </div>
+
+  <div class="shrink-0">
+    <button type="button" class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition border border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200" data-author-follow-button="true" data-author-user-id="9" data-base-class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition" data-following="true" data-enabled="true" data-loading="false" data-label-follow="&#20851;&#27880;" data-label-following="&#24050;&#20851;&#27880;" data-label-disabled="&#26242;&#19981;&#21487;&#20851;&#27880;" data-reload-on-success="false" aria-pressed="true">
+        &#24050;&#20851;&#27880;
+    </button>
+  </div>
+</article>
+                                      <article class="flex items-center justify-between gap-4 py-5 first:pt-0 last:pb-0">
+  <div class="flex min-w-0 items-center gap-4">
+    <div class="shrink-0">
+      <img class="h-14 w-14 rounded-full object-cover ring-1 ring-gray-200" src="https://pbs.twimg.com/profile_images/1396954100609142786/14AUIBI8_400x400.jpg" alt="@vasileva1122 &#30340;&#22836;&#20687;" loading="lazy" referrerpolicy="no-referrer">
+    </div>
+
+    <div class="min-w-0">
+      <p class="truncate text-xl font-semibold text-gray-950">@vasileva1122</p>
+      <p class="mt-1 truncate text-sm text-gray-400">@vasileva1122</p>
+          </div>
+  </div>
+
+  <div class="shrink-0">
+    <button type="button" class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition border border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200" data-author-follow-button="true" data-author-user-id="13" data-base-class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition" data-following="true" data-enabled="true" data-loading="false" data-label-follow="&#20851;&#27880;" data-label-following="&#24050;&#20851;&#27880;" data-label-disabled="&#26242;&#19981;&#21487;&#20851;&#27880;" data-reload-on-success="false" aria-pressed="true">
+        &#24050;&#20851;&#27880;
+    </button>
+  </div>
+</article>
+                                      <article class="flex items-center justify-between gap-4 py-5 first:pt-0 last:pb-0">
+  <div class="flex min-w-0 items-center gap-4">
+    <div class="shrink-0">
+      <img class="h-14 w-14 rounded-full object-cover ring-1 ring-gray-200" src="https://pbs.twimg.com/profile_images/1828661940551380992/iGVsfQqS_400x400.jpg" alt="@ubersex24h &#30340;&#22836;&#20687;" loading="lazy" referrerpolicy="no-referrer">
+    </div>
+
+    <div class="min-w-0">
+      <p class="truncate text-xl font-semibold text-gray-950">@ubersex24h</p>
+      <p class="mt-1 truncate text-sm text-gray-400">@ubersex24h</p>
+          </div>
+  </div>
+
+  <div class="shrink-0">
+    <button type="button" class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition border border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200" data-author-follow-button="true" data-author-user-id="2" data-base-class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition" data-following="true" data-enabled="true" data-loading="false" data-label-follow="&#20851;&#27880;" data-label-following="&#24050;&#20851;&#27880;" data-label-disabled="&#26242;&#19981;&#21487;&#20851;&#27880;" data-reload-on-success="false" aria-pressed="true">
+        &#24050;&#20851;&#27880;
+    </button>
+  </div>
+</article>
+                                      <article class="flex items-center justify-between gap-4 py-5 first:pt-0 last:pb-0">
+  <div class="flex min-w-0 items-center gap-4">
+    <div class="shrink-0">
+      <img class="h-14 w-14 rounded-full object-cover ring-1 ring-gray-200" src="https://api.dicebear.com/9.x/initials/svg?seed=%E6%A9%99%E7%BA%A2Iris" alt="&#27225;&#32418;Iris &#30340;&#22836;&#20687;" loading="lazy" referrerpolicy="no-referrer">
+    </div>
+
+    <div class="min-w-0">
+      <p class="truncate text-xl font-semibold text-gray-950">&#27225;&#32418;Iris</p>
+      <p class="mt-1 truncate text-sm text-gray-400">@social_iris_demo</p>
+              <p class="mt-2 line-clamp-2 text-sm leading-6 text-gray-500">&#31185;&#25216;&#25968;&#30721;&#65292;&#20197;&#21450;&#25972;&#27963;&#20799;&#12290;</p>
+          </div>
+  </div>
+
+  <div class="shrink-0">
+    <button type="button" class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition border border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200" data-author-follow-button="true" data-author-user-id="20" data-base-class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition" data-following="true" data-enabled="true" data-loading="false" data-label-follow="&#20851;&#27880;" data-label-following="&#24050;&#20851;&#27880;" data-label-disabled="&#26242;&#19981;&#21487;&#20851;&#27880;" data-reload-on-success="false" aria-pressed="true">
+        &#24050;&#20851;&#27880;
+    </button>
+  </div>
+</article>
+                                      <article class="flex items-center justify-between gap-4 py-5 first:pt-0 last:pb-0">
+  <div class="flex min-w-0 items-center gap-4">
+    <div class="shrink-0">
+      <img class="h-14 w-14 rounded-full object-cover ring-1 ring-gray-200" src="https://api.dicebear.com/9.x/initials/svg?seed=%E6%9E%81%E5%AE%A2%E6%B9%BEGeekerwan" alt="&#26497;&#23458;&#28286;Geekerwan &#30340;&#22836;&#20687;" loading="lazy" referrerpolicy="no-referrer">
+    </div>
+
+    <div class="min-w-0">
+      <p class="truncate text-xl font-semibold text-gray-950">&#26497;&#23458;&#28286;Geekerwan</p>
+      <p class="mt-1 truncate text-sm text-gray-400">@social_geekerwan_demo</p>
+              <p class="mt-2 line-clamp-2 text-sm leading-6 text-gray-500">&#20248;&#36136;&#31185;&#25216;&#21019;&#20316;&#32773;&#12290;</p>
+          </div>
+  </div>
+
+  <div class="shrink-0">
+    <button type="button" class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition border border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200" data-author-follow-button="true" data-author-user-id="21" data-base-class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition" data-following="true" data-enabled="true" data-loading="false" data-label-follow="&#20851;&#27880;" data-label-following="&#24050;&#20851;&#27880;" data-label-disabled="&#26242;&#19981;&#21487;&#20851;&#27880;" data-reload-on-success="false" aria-pressed="true">
+        &#24050;&#20851;&#27880;
+    </button>
+  </div>
+</article>
+                                      <article class="flex items-center justify-between gap-4 py-5 first:pt-0 last:pb-0">
+  <div class="flex min-w-0 items-center gap-4">
+    <div class="shrink-0">
+      <img class="h-14 w-14 rounded-full object-cover ring-1 ring-gray-200" src="https://api.dicebear.com/9.x/initials/svg?seed=%E5%BD%B1%E8%A7%86%E9%A3%93%E9%A3%8E" alt="&#24433;&#35270;&#39123;&#39118; &#30340;&#22836;&#20687;" loading="lazy" referrerpolicy="no-referrer">
+    </div>
+
+    <div class="min-w-0">
+      <p class="truncate text-xl font-semibold text-gray-950">&#24433;&#35270;&#39123;&#39118;</p>
+      <p class="mt-1 truncate text-sm text-gray-400">@social_vision_demo</p>
+              <p class="mt-2 line-clamp-2 text-sm leading-6 text-gray-500">&#26080;&#38480;&#36827;&#27493;&#65281;</p>
+          </div>
+  </div>
+
+  <div class="shrink-0">
+    <button type="button" class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition border border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200" data-author-follow-button="true" data-author-user-id="22" data-base-class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition" data-following="true" data-enabled="true" data-loading="false" data-label-follow="&#20851;&#27880;" data-label-following="&#24050;&#20851;&#27880;" data-label-disabled="&#26242;&#19981;&#21487;&#20851;&#27880;" data-reload-on-success="false" aria-pressed="true">
+        &#24050;&#20851;&#27880;
+    </button>
+  </div>
+</article>
+                                      <article class="flex items-center justify-between gap-4 py-5 first:pt-0 last:pb-0">
+  <div class="flex min-w-0 items-center gap-4">
+    <div class="shrink-0">
+      <img class="h-14 w-14 rounded-full object-cover ring-1 ring-gray-200" src="https://api.dicebear.com/9.x/initials/svg?seed=%E6%98%9F%E4%BA%91%E9%A3%9F%E5%A0%82" alt="&#26143;&#20113;&#39135;&#22530; &#30340;&#22836;&#20687;" loading="lazy" referrerpolicy="no-referrer">
+    </div>
+
+    <div class="min-w-0">
+      <p class="truncate text-xl font-semibold text-gray-950">&#26143;&#20113;&#39135;&#22530;</p>
+      <p class="mt-1 truncate text-sm text-gray-400">@social_nebula_demo</p>
+              <p class="mt-2 line-clamp-2 text-sm leading-6 text-gray-500">&#25226;&#26085;&#24120;&#25293;&#20986;&#30005;&#24433;&#24863;&#12290;</p>
+          </div>
+  </div>
+
+  <div class="shrink-0">
+    <button type="button" class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition border border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200" data-author-follow-button="true" data-author-user-id="23" data-base-class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition" data-following="true" data-enabled="true" data-loading="false" data-label-follow="&#20851;&#27880;" data-label-following="&#24050;&#20851;&#27880;" data-label-disabled="&#26242;&#19981;&#21487;&#20851;&#27880;" data-reload-on-success="false" aria-pressed="true">
+        &#24050;&#20851;&#27880;
+    </button>
+  </div>
+</article>
+                                  </div>
+
+                <p class="py-8 text-center text-sm font-medium text-gray-400">&#26242;&#26102;&#27809;&#26377;&#26356;&#22810;&#20102;</p>
+                          </div>
+                                  <div data-profile-social-tab-panel="followers" data-active="false" hidden class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-6 sm:px-7 sm:py-7">
+                              <div class="divide-y divide-gray-200">
+                                      <article class="flex items-center justify-between gap-4 py-5 first:pt-0 last:pb-0">
+  <div class="flex min-w-0 items-center gap-4">
+    <div class="shrink-0">
+      <img class="h-14 w-14 rounded-full object-cover ring-1 ring-gray-200" src="https://api.dicebear.com/9.x/initials/svg?seed=%E6%9E%81%E5%AE%A2%E6%B9%BEGeekerwan" alt="&#26497;&#23458;&#28286;Geekerwan &#30340;&#22836;&#20687;" loading="lazy" referrerpolicy="no-referrer">
+    </div>
+
+    <div class="min-w-0">
+      <p class="truncate text-xl font-semibold text-gray-950">&#26497;&#23458;&#28286;Geekerwan</p>
+      <p class="mt-1 truncate text-sm text-gray-400">@social_geekerwan_demo</p>
+              <p class="mt-2 line-clamp-2 text-sm leading-6 text-gray-500">&#20248;&#36136;&#31185;&#25216;&#21019;&#20316;&#32773;&#12290;</p>
+          </div>
+  </div>
+
+  <div class="shrink-0">
+    <button type="button" class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition border border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200" data-author-follow-button="true" data-author-user-id="21" data-base-class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition" data-following="true" data-enabled="true" data-loading="false" data-label-follow="&#20851;&#27880;" data-label-following="&#24050;&#20851;&#27880;" data-label-disabled="&#26242;&#19981;&#21487;&#20851;&#27880;" data-reload-on-success="false" aria-pressed="true">
+        &#24050;&#20851;&#27880;
+    </button>
+  </div>
+</article>
+                                      <article class="flex items-center justify-between gap-4 py-5 first:pt-0 last:pb-0">
+  <div class="flex min-w-0 items-center gap-4">
+    <div class="shrink-0">
+      <img class="h-14 w-14 rounded-full object-cover ring-1 ring-gray-200" src="https://api.dicebear.com/9.x/initials/svg?seed=%E5%83%8F%E7%B4%A0%E8%88%AA%E7%BA%BF" alt="&#20687;&#32032;&#33322;&#32447; &#30340;&#22836;&#20687;" loading="lazy" referrerpolicy="no-referrer">
+    </div>
+
+    <div class="min-w-0">
+      <p class="truncate text-xl font-semibold text-gray-950">&#20687;&#32032;&#33322;&#32447;</p>
+      <p class="mt-1 truncate text-sm text-gray-400">@social_pixel_demo</p>
+              <p class="mt-2 line-clamp-2 text-sm leading-6 text-gray-500">&#35760;&#24405;&#23631;&#24149;&#20869;&#22806;&#30340;&#26032;&#40092;&#28789;&#24863;&#12290;</p>
+          </div>
+  </div>
+
+  <div class="shrink-0">
+    <button type="button" class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition bg-rose-500 text-white hover:bg-rose-600" data-author-follow-button="true" data-author-user-id="24" data-base-class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition" data-following="false" data-enabled="true" data-loading="false" data-label-follow="&#20851;&#27880;" data-label-following="&#24050;&#20851;&#27880;" data-label-disabled="&#26242;&#19981;&#21487;&#20851;&#27880;" data-reload-on-success="false" aria-pressed="false">
+        &#20851;&#27880;
+    </button>
+  </div>
+</article>
+                                      <article class="flex items-center justify-between gap-4 py-5 first:pt-0 last:pb-0">
+  <div class="flex min-w-0 items-center gap-4">
+    <div class="shrink-0">
+      <img class="h-14 w-14 rounded-full object-cover ring-1 ring-gray-200" src="https://api.dicebear.com/9.x/initials/svg?seed=%E5%B1%B1%E6%B5%B7%E6%89%8B%E5%B8%90" alt="&#23665;&#28023;&#25163;&#24080; &#30340;&#22836;&#20687;" loading="lazy" referrerpolicy="no-referrer">
+    </div>
+
+    <div class="min-w-0">
+      <p class="truncate text-xl font-semibold text-gray-950">&#23665;&#28023;&#25163;&#24080;</p>
+      <p class="mt-1 truncate text-sm text-gray-400">@social_mountain_demo</p>
+              <p class="mt-2 line-clamp-2 text-sm leading-6 text-gray-500">&#29983;&#27963;&#26041;&#24335;&#19982;&#36731;&#26053;&#34892;&#31508;&#35760;&#12290;</p>
+          </div>
+  </div>
+
+  <div class="shrink-0">
+    <button type="button" class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition bg-rose-500 text-white hover:bg-rose-600" data-author-follow-button="true" data-author-user-id="25" data-base-class="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold shadow-sm transition" data-following="false" data-enabled="true" data-loading="false" data-label-follow="&#20851;&#27880;" data-label-following="&#24050;&#20851;&#27880;" data-label-disabled="&#26242;&#19981;&#21487;&#20851;&#27880;" data-reload-on-success="false" aria-pressed="false">
+        &#20851;&#27880;
+    </button>
+  </div>
+</article>
+                                  </div>
+
+                <p class="py-8 text-center text-sm font-medium text-gray-400">&#26242;&#26102;&#27809;&#26377;&#26356;&#22810;&#20102;</p>
+                          </div>
+                  </div>
+      </section>
+    </div>
+  </div>
+    
+          <div id="profile-video-upload-dialog" data-profile-video-upload="true" data-profile-video-upload-action="/api/videos" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-gray-950/40 p-4 backdrop-blur-sm sm:p-6" hidden>
+        <section id="profile-video-upload-dialog-panel" data-profile-video-upload-panel="true" class="relative w-full max-w-2xl rounded-[32px] border border-gray-200 bg-white p-6 shadow-glass animate-card-in sm:p-7" role="dialog" aria-modal="true" aria-labelledby="profile-video-upload-dialog-title" tabindex="-1">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <p class="text-sm font-semibold uppercase tracking-[0.18em] text-rose-500">Creator Studio</p>
+              <h2 id="profile-video-upload-dialog-title" class="mt-2 text-2xl font-semibold tracking-tight text-gray-950 sm:text-3xl">&#19978;&#20256;&#35270;&#39057;</h2>
+              <p class="mt-2 text-sm leading-6 text-gray-500">&#36873;&#25321;&#35270;&#39057;&#25991;&#20214;&#65292;&#22635;&#20889;&#26631;&#39064;&#21644;&#26631;&#31614;&#21518;&#21363;&#21487;&#21152;&#20837;&#19978;&#20256;&#38431;&#21015;&#12290;&#25903;&#25345; MP4&#12289;MOV&#12289;M4V&#12289;WEBM&#65292;&#25991;&#20214;&#22823;&#23567;&#19981;&#36229;&#36807; 200MB&#12290;</p>
+            </div>
+
+            <button type="button" data-profile-video-upload-close="true" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 transition hover:border-gray-300 hover:text-gray-950" aria-label="&#20851;&#38381;&#19978;&#20256;&#35270;&#39057;&#24377;&#31383;">
+              <i class="ph ph-x text-xl leading-none" aria-hidden="true"></i>
+            </button>
+          </div>
+
+          <div data-profile-video-upload-form="true" class="mt-6 grid gap-6" novalidate="" data-static-form="true" role="form">
+            <p data-profile-video-upload-error="general" class="hidden rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-700" aria-live="polite"></p>
+
+            <div class="grid gap-5">
+              <div class="rounded-[28px] border border-dashed border-gray-200 bg-stone-50 px-4 py-5">
+                <label for="profile-video-upload-input" class="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-full border border-gray-200 bg-white px-5 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:text-gray-950">
+                  <i class="ph ph-video-camera text-base leading-none" aria-hidden="true"></i>
+                  &#36873;&#25321;&#35270;&#39057;&#25991;&#20214;
+                </label>
+                <input id="profile-video-upload-input" data-profile-video-upload-input="true" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-m4v,.mp4,.mov,.m4v,.webm" class="sr-only">
+                <p data-profile-video-upload-file-name="true" class="mt-3 text-sm text-gray-500">&#26410;&#36873;&#25321;&#35270;&#39057;&#25991;&#20214;</p>
+                <p class="mt-2 text-xs leading-6 text-gray-400">&#24314;&#35758;&#20351;&#29992;&#31446;&#23631;&#30701;&#35270;&#39057;&#65292;&#19978;&#20256;&#21518;&#20250;&#20808;&#36827;&#20837;&ldquo;&#19978;&#20256;&#20013;&rdquo;&#21015;&#34920;&#12290;</p>
+                <p data-profile-video-upload-error="video" class="hidden mt-3 text-sm leading-6 text-rose-600" aria-live="polite"></p>
+              </div>
+
+              <div class="grid gap-2">
+                <label for="profile-video-upload-title" class="text-sm font-semibold text-gray-700">&#26631;&#39064;</label>
+                <input id="profile-video-upload-title" data-profile-video-upload-title-input="true" type="text" maxlength="120" class="h-12 rounded-2xl border border-gray-200 bg-white px-4 text-base text-gray-950 outline-none transition placeholder:text-gray-400 focus:border-rose-300 focus:ring-2 focus:ring-rose-100" placeholder="&#32473;&#36825;&#26465;&#35270;&#39057;&#36215;&#20010;&#37266;&#30446;&#30340;&#26631;&#39064;">
+                <p data-profile-video-upload-error="title" class="hidden text-sm leading-6 text-rose-600" aria-live="polite"></p>
+              </div>
+
+              <div class="grid gap-2">
+                <div class="flex items-center justify-between gap-3">
+                  <label for="profile-video-upload-tags" class="text-sm font-semibold text-gray-700">&#26631;&#31614;</label>
+                  <span class="text-xs text-gray-400">&#22810;&#20010;&#26631;&#31614;&#29992;&#36887;&#21495;&#20998;&#38548;</span>
+                </div>
+                <input id="profile-video-upload-tags" data-profile-video-upload-tags-input="true" type="text" maxlength="120" class="h-12 rounded-2xl border border-gray-200 bg-white px-4 text-base text-gray-950 outline-none transition placeholder:text-gray-400 focus:border-rose-300 focus:ring-2 focus:ring-rose-100" placeholder="&#20363;&#22914;&#65306;&#26053;&#34892;, &#25506;&#24215;, Vlog">
+                <p data-profile-video-upload-error="tags" class="hidden text-sm leading-6 text-rose-600" aria-live="polite"></p>
+              </div>
+
+              <div class="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                <button type="button" data-profile-video-upload-close="true" class="inline-flex h-11 items-center justify-center rounded-full border border-gray-200 bg-white px-5 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:text-gray-950">
+                  &#21462;&#28040;
+                </button>
+                <button type="submit" data-profile-video-upload-submit="true" class="inline-flex h-11 items-center justify-center rounded-full bg-gray-900 px-5 text-sm font-semibold text-white transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400" disabled>
+                  &#24320;&#22987;&#19978;&#20256;
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div id="profile-editor-dialog" data-profile-editor="true" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-gray-950/40 p-4 backdrop-blur-sm sm:p-6" hidden>
+        <section id="profile-editor-dialog-panel" data-profile-editor-panel="true" class="relative w-full max-w-2xl rounded-[32px] border border-gray-200 bg-white p-6 shadow-glass animate-card-in sm:p-7" role="dialog" aria-modal="true" aria-labelledby="profile-editor-dialog-title" tabindex="-1">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <p class="text-sm font-semibold uppercase tracking-[0.18em] text-rose-500">Profile</p>
+              <h2 id="profile-editor-dialog-title" class="mt-2 text-2xl font-semibold tracking-tight text-gray-950 sm:text-3xl">&#32534;&#36753;&#36164;&#26009;</h2>
+              <p class="mt-2 text-sm leading-6 text-gray-500">&#21487;&#20197;&#19968;&#27425;&#26356;&#26032;&#22836;&#20687;&#12289;&#26165;&#31216;&#21644;&#31616;&#20171;&#12290;&#22836;&#20687;&#25903;&#25345; JPG&#12289;PNG&#12289;WEBP&#65292;&#25991;&#20214;&#22823;&#23567;&#19981;&#36229;&#36807; 5MB&#12290;</p>
+            </div>
+
+            <button type="button" data-profile-editor-close="true" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 transition hover:border-gray-300 hover:text-gray-950" aria-label="&#20851;&#38381;&#32534;&#36753;&#36164;&#26009;&#24377;&#31383;">
+              <i class="ph ph-x text-xl leading-none" aria-hidden="true"></i>
+            </button>
+          </div>
+
+          <div data-profile-editor-form="true" class="mt-6 grid gap-6" novalidate="" data-static-form="true" role="form">
+            <p data-profile-editor-error="general" class="hidden rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-700" aria-live="polite"></p>
+
+            <div class="grid gap-6 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-start">
+              <div class="flex justify-center sm:justify-start">
+                <span data-avatar-slot="preview" data-avatar-kind="preview" data-avatar-label="demo.viewer" data-avatar-initial="D" data-avatar-url="/avatars/19/b9cd6788-e377-488b-8675-d2ded40774b6.png" class="block">
+                  <img class="h-36 w-36 rounded-full object-cover ring-1 ring-gray-200" src="assets/avatars/19/b9cd6788-e377-488b-8675-d2ded40774b6.png" alt="demo.viewer &#30340;&#22836;&#20687;" loading="lazy" referrerpolicy="no-referrer">
+                </span>
+              </div>
+
+              <div class="grid gap-5">
+                <div class="rounded-[28px] border border-dashed border-gray-200 bg-stone-50 px-4 py-4">
+                  <label for="profile-editor-avatar-input" class="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-full border border-gray-200 bg-white px-5 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:text-gray-950">
+                    <i class="ph ph-upload-simple text-base leading-none" aria-hidden="true"></i>
+                    &#36873;&#25321;&#22270;&#29255;
+                  </label>
+                  <input id="profile-editor-avatar-input" data-profile-editor-avatar-input="true" type="file" accept="image/jpeg,image/png,image/webp" class="sr-only">
+                  <p data-profile-editor-avatar-file-name="true" class="mt-3 text-sm text-gray-500">&#26410;&#36873;&#25321;&#26032;&#22270;&#29255;</p>
+                  <p data-profile-editor-error="avatar" class="hidden mt-3 text-sm leading-6 text-rose-600" aria-live="polite"></p>
+                </div>
+
+                <div class="grid gap-2">
+                  <label for="profile-editor-name" class="text-sm font-semibold text-gray-700">&#26165;&#31216;</label>
+                  <input id="profile-editor-name" data-profile-editor-name-input="true" type="text" maxlength="50" value="demo.viewer" autocomplete="name" class="h-12 rounded-2xl border border-gray-200 bg-white px-4 text-base text-gray-950 outline-none transition placeholder:text-gray-400 focus:border-rose-300 focus:ring-2 focus:ring-rose-100">
+                  <p data-profile-editor-error="name" class="hidden text-sm leading-6 text-rose-600" aria-live="polite"></p>
+                </div>
+
+                <div class="grid gap-2">
+                  <div class="flex items-center justify-between gap-3">
+                    <label for="profile-editor-bio" class="text-sm font-semibold text-gray-700">&#31616;&#20171;</label>
+                    <span class="text-xs text-gray-400">&#26368;&#22810; 280 &#23383;</span>
+                  </div>
+                  <textarea id="profile-editor-bio" data-profile-editor-bio-input="true" rows="4" maxlength="280" class="min-h-28 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm leading-7 text-gray-950 outline-none transition placeholder:text-gray-400 focus:border-rose-300 focus:ring-2 focus:ring-rose-100" placeholder="&#20889;&#28857;&#20160;&#20040;&#65292;&#35753;&#21035;&#20154;&#26356;&#24555;&#35748;&#35782;&#20320;&#12290;"></textarea>
+                  <p data-profile-editor-error="bio" class="hidden text-sm leading-6 text-rose-600" aria-live="polite"></p>
+                </div>
+
+                <div class="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                  <button type="button" data-profile-editor-close="true" class="inline-flex h-11 items-center justify-center rounded-full border border-gray-200 bg-white px-5 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:text-gray-950">
+                    &#21462;&#28040;
+                  </button>
+                  <button type="submit" data-profile-editor-submit="true" class="inline-flex h-11 items-center justify-center rounded-full bg-gray-900 px-5 text-sm font-semibold text-white transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400" disabled>
+                    &#20445;&#23384;&#36164;&#26009;
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    
+    
+
+              
+    
+                          
+    
+              
+    
+              
+          
+  </body>
+</html>
