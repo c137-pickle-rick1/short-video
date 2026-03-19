@@ -49,6 +49,7 @@ This project has domain-specific skills available. You MUST activate the relevan
 ## Documentation Files
 
 - You must only create documentation files if explicitly requested by the user.
+- For the static HTML handoff/export workflow, reuse the documented process in `delivery/static-html/README.md` before inventing a new export path.
 
 ## Replies
 
