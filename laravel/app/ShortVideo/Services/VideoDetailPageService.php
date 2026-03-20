@@ -9,11 +9,14 @@ use App\ShortVideo\Auth\CurrentViewerResolver;
 use App\ShortVideo\Repositories\SocialGraphRepository;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Routing\UrlGenerator;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 final class VideoDetailPageService
 {
+    private const COMMENT_PAGE_LIMIT = 10;
+
     private const SITE_NAME = 'Lagos Explore Feed';
 
     public function __construct(
@@ -25,7 +28,7 @@ final class VideoDetailPageService
     /**
      * @return array<string, mixed>
      */
-    public function getPageViewModel(Video $video): array
+    public function getPageViewModel(Video $video, int|string|null $page = null): array
     {
         abort_if($video->status !== 'published' || $video->visibility !== 'public', 404);
 
@@ -37,7 +40,6 @@ final class VideoDetailPageService
         $video->loadCount([
             'likedByUsers as like_count',
             'bookmarkedByUsers as bookmark_count',
-            'allComments as comment_count',
         ]);
 
         $tweet = $this->resolveTweetPayload($video);
@@ -62,7 +64,10 @@ final class VideoDetailPageService
         $canonicalUrl = $this->url->route('videos.show', ['video' => $video], true);
         $contentUrl = $this->absoluteUrl($playbackUrl);
         $metaDescription = $this->buildMetaDescription($description, $title);
-        $comments = $this->resolveComments($video);
+        $commentsPage = $this->resolveComments($video, $page);
+        $comments = $commentsPage['items'];
+        $commentsPagination = $commentsPage['pagination'];
+        $rootCommentCount = (int) ($commentsPagination['totalCount'] ?? 0);
         $canComment = $viewer !== null && $viewer->can('comment', $video);
         $likedByViewer = $this->hasViewerReaction($video, $viewer, 'likedByUsers');
         $bookmarkedByViewer = $this->hasViewerReaction($video, $viewer, 'bookmarkedByUsers');
@@ -103,16 +108,17 @@ final class VideoDetailPageService
                     : null,
                 'originalUrl' => $tweet['tweet_url'] ?? null,
                 'comments' => $comments,
-                'commentsStatusText' => (int) ($video->comment_count ?? 0) > 0 ? (int) ($video->comment_count ?? 0).' 条评论' : '暂无评论',
+                'commentsPagination' => $commentsPagination,
+                'commentsStatusText' => $rootCommentCount > 0 ? $rootCommentCount.' 条评论' : '暂无评论',
                 'canComment' => $canComment,
                 'commentComposerPlaceholder' => $canComment ? '说点什么...' : '登录后参与评论',
                 'interactionHint' => $canComment
-                    ? '详情页暂不支持直接互动，点赞、收藏和评论仍在弹窗中处理。'
-                    : '登录后可以在弹窗里继续点赞、收藏和评论。',
+                    ? '详情页暂不支持直接提交互动，当前先展示最终排版。'
+                    : '登录后可以在这里参与评论，点赞和收藏后续会接入详情页。',
                 'engagement' => [
                     'likeCount' => (int) ($video->like_count ?? 0),
                     'bookmarkCount' => (int) ($video->bookmark_count ?? 0),
-                    'commentCount' => (int) ($video->comment_count ?? 0),
+                    'commentCount' => $rootCommentCount,
                     'viewCount' => $this->resolveViewCount($video),
                     'likedByViewer' => $likedByViewer,
                     'bookmarkedByViewer' => $bookmarkedByViewer,
@@ -435,21 +441,31 @@ final class VideoDetailPageService
     }
 
     /**
-     * @return array<int, array{
-     *   id:int,
-     *   body:string,
-     *   createdAtText:string,
-     *   author: array{name:string,username:string,avatarUrl:?string,initial:string}
-     * }>
+     * @return array{
+     *   items: array<int, array{
+     *     id:int,
+     *     body:string,
+     *     createdAtText:string,
+     *     author: array{name:string,username:string,avatarUrl:?string,initial:string}
+     *   }>,
+     *   pagination: array{
+     *     currentPage:int,
+     *     lastPage:int,
+     *     perPage:int,
+     *     totalCount:int
+     *   }
+     * }
      */
-    private function resolveComments(Video $video): array
+    private function resolveComments(Video $video, int|string|null $page = null): array
     {
-        return $video->comments()
+        $resolvedPage = max(1, (int) $page);
+        $commentPaginator = $video->comments()
             ->with('user:id,username,name,avatar_url')
             ->latest('created_at')
             ->latest('id')
-            ->limit(50)
-            ->get()
+            ->paginate(self::COMMENT_PAGE_LIMIT, ['*'], 'page', $resolvedPage);
+
+        $commentItems = $commentPaginator->getCollection()
             ->map(function (VideoComment $comment): array {
                 $authorName = trim((string) ($comment->user?->name ?? '')) !== ''
                     ? trim((string) $comment->user?->name)
@@ -469,6 +485,29 @@ final class VideoDetailPageService
             })
             ->values()
             ->all();
+
+        return [
+            'items' => $commentItems,
+            'pagination' => $this->mapCommentPagination($commentPaginator),
+        ];
+    }
+
+    /**
+     * @return array{
+     *   currentPage:int,
+     *   lastPage:int,
+     *   perPage:int,
+     *   totalCount:int
+     * }
+     */
+    private function mapCommentPagination(LengthAwarePaginator $commentPaginator): array
+    {
+        return [
+            'currentPage' => $commentPaginator->currentPage(),
+            'lastPage' => max(1, $commentPaginator->lastPage()),
+            'perPage' => $commentPaginator->perPage(),
+            'totalCount' => $commentPaginator->total(),
+        ];
     }
 
     /**

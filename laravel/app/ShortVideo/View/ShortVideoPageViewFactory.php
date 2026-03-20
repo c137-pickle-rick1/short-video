@@ -38,10 +38,18 @@ final class ShortVideoPageViewFactory
      */
     public function renderVideoDetailPage(array $viewModel): View
     {
+        $video = is_array($viewModel['video'] ?? null) ? $viewModel['video'] : [];
+        $videoId = isset($video['id']) && is_numeric((string) $video['id']) ? (int) $video['id'] : null;
+
+        $video['commentsPagination'] = $this->resolveVideoDetailPagination(
+            is_array($video['commentsPagination'] ?? null) ? $video['commentsPagination'] : [],
+            $videoId
+        );
+
         return $this->views->make('shortvideo.video-detail', array_merge(
             $this->buildBaseViewData('', $viewModel),
             [
-                'video' => is_array($viewModel['video'] ?? null) ? $viewModel['video'] : [],
+                'video' => $video,
             ]
         ));
     }
@@ -367,6 +375,31 @@ final class ShortVideoPageViewFactory
      */
     private function resolveCollectionPagination(array $pagination): array
     {
+        return $this->resolvePagination(
+            $pagination,
+            fn (int $page): string => $this->paginationPageUrl($page)
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $pagination
+     * @return array<string, mixed>
+     */
+    private function resolveVideoDetailPagination(array $pagination, ?int $videoId): array
+    {
+        return $this->resolvePagination(
+            $pagination,
+            fn (int $page): string => $this->videoDetailPaginationPageUrl($page, $videoId)
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $pagination
+     * @param  callable(int): string  $pageUrlResolver
+     * @return array<string, mixed>
+     */
+    private function resolvePagination(array $pagination, callable $pageUrlResolver): array
+    {
         $currentPage = max(1, (int) ($pagination['currentPage'] ?? 1));
         $lastPage = max(1, (int) ($pagination['lastPage'] ?? 1));
         $totalCount = max(0, (int) ($pagination['totalCount'] ?? 0));
@@ -378,16 +411,17 @@ final class ShortVideoPageViewFactory
             'totalCount' => $totalCount,
             'perPage' => $perPage,
             'hasPages' => $lastPage > 1,
-            'previousPageUrl' => $currentPage > 1 ? $this->paginationPageUrl($currentPage - 1) : null,
-            'nextPageUrl' => $currentPage < $lastPage ? $this->paginationPageUrl($currentPage + 1) : null,
-            'links' => $this->buildCollectionPaginationLinks($currentPage, $lastPage),
+            'previousPageUrl' => $currentPage > 1 ? $pageUrlResolver($currentPage - 1) : null,
+            'nextPageUrl' => $currentPage < $lastPage ? $pageUrlResolver($currentPage + 1) : null,
+            'links' => $this->buildPaginationLinks($currentPage, $lastPage, $pageUrlResolver),
         ];
     }
 
     /**
+     * @param  callable(int): string  $pageUrlResolver
      * @return array<int, array<string, mixed>>
      */
-    private function buildCollectionPaginationLinks(int $currentPage, int $lastPage): array
+    private function buildPaginationLinks(int $currentPage, int $lastPage, callable $pageUrlResolver): array
     {
         if ($lastPage <= 1) {
             return [];
@@ -423,7 +457,7 @@ final class ShortVideoPageViewFactory
             $links[] = [
                 'type' => 'page',
                 'label' => (string) $page,
-                'url' => $this->paginationPageUrl($page),
+                'url' => $pageUrlResolver($page),
                 'active' => $page === $currentPage,
             ];
             $previousPage = $page;
@@ -436,7 +470,46 @@ final class ShortVideoPageViewFactory
     {
         $routeName = request()->route()?->getName();
         $resolvedRouteName = is_string($routeName) && $routeName !== '' ? $routeName : 'viewer.history';
-        $routeParameters = request()->route()?->parametersWithoutNulls() ?? [];
+        $routeParameters = is_array(request()->route()?->parametersWithoutNulls())
+            ? request()->route()?->parametersWithoutNulls()
+            : [];
+        $queryParameters = $this->filteredQueryParameters();
+
+        return $this->routePaginationPageUrl($resolvedRouteName, $routeParameters, $queryParameters, $page);
+    }
+
+    private function videoDetailPaginationPageUrl(int $page, ?int $videoId): string
+    {
+        if ($videoId === null || $videoId <= 0) {
+            return '#';
+        }
+
+        return $this->routePaginationPageUrl(
+            'videos.show',
+            ['video' => $videoId],
+            $this->filteredQueryParameters(),
+            $page
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $routeParameters
+     * @param  array<string, mixed>  $queryParameters
+     */
+    private function routePaginationPageUrl(string $routeName, array $routeParameters, array $queryParameters, int $page): string
+    {
+        return $this->url->route($routeName, array_merge(
+            $routeParameters,
+            $queryParameters,
+            $page <= 1 ? [] : ['page' => $page]
+        ));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function filteredQueryParameters(): array
+    {
         $queryParameters = request()->query();
 
         if (is_array($queryParameters)) {
@@ -445,10 +518,6 @@ final class ShortVideoPageViewFactory
             $queryParameters = [];
         }
 
-        return $this->url->route($resolvedRouteName, array_merge(
-            $routeParameters,
-            $queryParameters,
-            $page <= 1 ? [] : ['page' => $page]
-        ));
+        return $queryParameters;
     }
 }

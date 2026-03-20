@@ -2,6 +2,8 @@
   $video = is_array($video ?? null) ? $video : [];
   $engagement = is_array($video['engagement'] ?? null) ? $video['engagement'] : [];
   $comments = is_array($video['comments'] ?? null) ? $video['comments'] : [];
+  $commentsPagination = is_array($video['commentsPagination'] ?? null) ? $video['commentsPagination'] : [];
+  $commentsPaginationLinks = is_array($commentsPagination['links'] ?? null) ? $commentsPagination['links'] : [];
   $followState = is_array($video['followState'] ?? null) ? $video['followState'] : [];
   $playerSources = is_array($video['playerSources'] ?? null) ? $video['playerSources'] : [];
   $structuredData = is_array($video['structuredData'] ?? null) ? $video['structuredData'] : [];
@@ -9,7 +11,6 @@
   $authorHandleClass = !empty($video['authorHandle']) ? 'mt-1 truncate text-sm text-gray-500' : null;
   $likeCount = (int) ($engagement['likeCount'] ?? 0);
   $bookmarkCount = (int) ($engagement['bookmarkCount'] ?? 0);
-  $commentCount = (int) ($engagement['commentCount'] ?? 0);
   $viewCount = (int) ($engagement['viewCount'] ?? 0);
   $likedByViewer = ($engagement['likedByViewer'] ?? false) === true;
   $bookmarkedByViewer = ($engagement['bookmarkedByViewer'] ?? false) === true;
@@ -85,206 +86,268 @@
         <span class="max-w-full truncate text-gray-900">{{ $video['title'] ?? '' }}</span>
       </nav>
 
-      <section class="overflow-hidden rounded-[32px] border border-gray-200 bg-white shadow-sm">
-        <div class="grid xl:grid-cols-[minmax(0,1fr)_430px]">
-          <div class="border-b border-gray-200 bg-black xl:border-b-0 xl:border-r xl:border-gray-200">
-            <div class="flex min-h-[20rem] items-center justify-center px-4 py-4 sm:min-h-[26rem] sm:px-6 sm:py-6 xl:min-h-[42rem]">
-              @if($playerSources !== [])
-                <video
-                  data-video-detail-player="true"
-                  class="max-h-[72vh] w-full bg-black object-contain shadow-[0_28px_80px_rgba(0,0,0,0.42)] sm:max-h-[76vh]"
-                  controls
-                  playsinline
-                  preload="metadata"
-                  @if(!empty($video['posterUrl'])) poster="{{ $video['posterUrl'] }}" @endif
-                >
-                  @foreach($playerSources as $source)
-                    <source
-                      src="{{ $source['src'] ?? '' }}"
-                      @if(!empty($source['type'])) type="{{ $source['type'] }}" @endif
-                    />
-                  @endforeach
-                </video>
-              @else
-                <div
-                  data-video-detail-player="true"
-                  class="flex min-h-[20rem] w-full items-center justify-center px-6 py-10 text-center text-sm font-medium text-white/70"
-                >
-                  这个视频当前没有可用的播放地址。
+      <section data-video-detail-section="player" class="overflow-hidden rounded-[32px] bg-black shadow-sm">
+        <div class="aspect-video w-full bg-black">
+          <div class="flex h-full w-full items-center justify-center">
+            @if($playerSources !== [])
+              <video
+                data-video-detail-player="true"
+                class="h-full w-full bg-black object-contain shadow-[0_28px_80px_rgba(0,0,0,0.42)]"
+                controls
+                playsinline
+                preload="metadata"
+                @if(!empty($video['posterUrl'])) poster="{{ $video['posterUrl'] }}" @endif
+              >
+                @foreach($playerSources as $source)
+                  <source
+                    src="{{ $source['src'] ?? '' }}"
+                    @if(!empty($source['type'])) type="{{ $source['type'] }}" @endif
+                  />
+                @endforeach
+              </video>
+            @else
+              <div
+                data-video-detail-player="true"
+                class="flex h-full w-full items-center justify-center px-6 py-10 text-center text-sm font-medium text-white/70"
+              >
+                这个视频当前没有可用的播放地址。
+              </div>
+            @endif
+          </div>
+        </div>
+      </section>
+
+      <section data-video-detail-section="title" class="grid gap-4">
+        <div class="grid gap-3">
+          <h1 class="text-[1.4rem] font-semibold leading-[1.38] text-gray-950 sm:text-[1.7rem]">
+            {{ $video['title'] ?? '' }}
+          </h1>
+
+          <div data-video-detail-meta="true" class="flex flex-wrap items-center gap-2 text-xs text-gray-500 sm:text-sm">
+            <span class="rounded-full bg-white px-3 py-1.5 shadow-sm ring-1 ring-gray-200">
+              发布日期 · {{ $video['publishedAtDetailText'] ?? $video['publishedAtText'] ?? '发布日期待更新' }}
+            </span>
+            <span class="rounded-full bg-white px-3 py-1.5 shadow-sm ring-1 ring-gray-200">
+              {{ $viewCount }} 次观看
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section data-video-detail-section="author" class="rounded-[28px] border border-gray-200 bg-white/90 p-5 shadow-sm sm:p-6">
+        <div class="flex items-start justify-between gap-4">
+          <x-shortvideo.feed.author-identity
+            :image-url="$video['authorAvatarUrl'] ?? null"
+            :author-name="(string) ($video['authorName'] ?? '视频作者')"
+            :author-handle="(string) ($video['authorHandle'] ?? '')"
+            :author-initial="(string) ($video['authorInitial'] ?? 'L')"
+            avatar-size-class="h-12 w-12"
+            name-class="truncate text-base font-semibold text-gray-950"
+            :handle-class="$authorHandleClass"
+            wrapper-class="flex min-w-0 items-center gap-3"
+            fallback-class="bg-gray-900 text-white"
+            :profile-url="$video['authorProfileUrl'] ?? null"
+          />
+
+          @if($followViewerUserId === null && $followAuthorUserId !== null)
+            <a
+              href="{{ $loginUrl }}"
+              data-auth-modal-trigger="true"
+              data-auth-modal-panel="login"
+              class="{{ $followButtonBaseClass }} bg-gray-900 text-white hover:bg-gray-800"
+            >
+              关注
+            </a>
+          @elseif($canFollowAuthor && $followAuthorUserId !== null)
+            <button
+              type="button"
+              class="{{ $followButtonBaseClass }} {{ $followedByViewer ? 'border border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-rose-500 text-white hover:bg-rose-600' }}"
+              data-author-follow-button="true"
+              data-author-user-id="{{ $followAuthorUserId }}"
+              data-base-class="{{ $followButtonBaseClass }}"
+              data-following="{{ $followedByViewer ? 'true' : 'false' }}"
+              data-enabled="true"
+              data-loading="false"
+              data-label-follow="关注"
+              data-label-following="已关注"
+              data-label-disabled="暂不可关注"
+              data-reload-on-success="false"
+              aria-pressed="{{ $followedByViewer ? 'true' : 'false' }}"
+            >
+              {{ $followedByViewer ? '已关注' : '关注' }}
+            </button>
+          @else
+            <button
+              type="button"
+              class="{{ $followButtonBaseClass }} bg-gray-100 text-gray-400"
+              disabled
+            >
+              {{ $followViewerUserId !== null && $followAuthorUserId !== null && $followViewerUserId === $followAuthorUserId ? '你自己' : '暂不可关注' }}
+            </button>
+          @endif
+        </div>
+      </section>
+
+      <section data-video-detail-section="interactions" class="rounded-[28px] border border-gray-200 bg-white/90 p-5 shadow-sm sm:p-6">
+        <div class="grid gap-3">
+          <div class="flex items-center gap-3">
+            <div class="flex h-12 min-w-0 flex-1 items-center rounded-full bg-gray-100 px-4 text-sm text-gray-400">
+              {{ $commentComposerPlaceholder }}
+            </div>
+
+            @if(!$canComment)
+              <a
+                href="{{ $loginUrl }}"
+                data-auth-modal-trigger="true"
+                data-auth-modal-panel="login"
+                class="inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-gray-900 px-5 text-sm font-semibold text-white transition hover:bg-gray-800"
+              >
+                登录评论
+              </a>
+            @else
+              <button
+                type="button"
+                class="inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-gray-900 px-5 text-sm font-semibold text-white/70"
+                disabled
+              >
+                发送
+              </button>
+            @endif
+          </div>
+
+          <div class="flex shrink-0 items-center gap-2">
+            <span class="inline-flex h-11 shrink-0 items-center gap-2.5 rounded-full border px-4 text-sm font-semibold {{ $likedByViewer ? 'border-rose-200 bg-rose-50 text-rose-600' : 'border-gray-200 bg-white text-gray-500' }}">
+              <i class="{{ $likedByViewer ? 'ph-fill ph-heart' : 'ph ph-heart' }} text-[1.05rem] leading-none" aria-hidden="true"></i>
+              <span class="text-xs font-semibold tabular-nums opacity-80">{{ $likeCount }}</span>
+            </span>
+
+            <span class="inline-flex h-11 shrink-0 items-center gap-2.5 rounded-full border px-4 text-sm font-semibold {{ $bookmarkedByViewer ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-gray-200 bg-white text-gray-500' }}">
+              <i class="{{ $bookmarkedByViewer ? 'ph-fill ph-bookmark-simple' : 'ph ph-bookmark-simple' }} text-[1.05rem] leading-none" aria-hidden="true"></i>
+              <span class="text-xs font-semibold tabular-nums opacity-80">{{ $bookmarkCount }}</span>
+            </span>
+          </div>
+
+          @if($interactionHint !== '')
+            <p class="text-sm leading-6 text-gray-500">
+              {{ $interactionHint }}
+            </p>
+          @endif
+        </div>
+      </section>
+
+      <section data-video-detail-section="comments" aria-labelledby="detail-comments-title" class="grid gap-5">
+        <div class="flex items-end justify-between gap-3">
+          <div>
+            <h2 id="detail-comments-title" class="text-base font-semibold text-gray-950">
+              评论区
+            </h2>
+          </div>
+          <span class="rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-500 shadow-sm ring-1 ring-gray-200">
+            {{ $video['commentsStatusText'] ?? '暂无评论' }}
+          </span>
+        </div>
+
+        <div data-video-detail-comments-list="true" class="grid gap-5">
+          @forelse($comments as $comment)
+            @php
+              $commentAuthor = is_array($comment['author'] ?? null) ? $comment['author'] : [];
+              $commentAuthorName = (string) ($commentAuthor['name'] ?? '匿名用户');
+            @endphp
+            <article data-video-detail-comment-item="true" class="grid gap-3 rounded-[1.5rem] border border-gray-200/80 bg-white/90 p-4 shadow-sm">
+              <div class="flex items-start gap-3">
+                <x-ui.avatar
+                  :image-url="$commentAuthor['avatarUrl'] ?? null"
+                  :label="$commentAuthorName"
+                  :initial="(string) ($commentAuthor['initial'] ?? 'L')"
+                  size-class="h-10 w-10"
+                  fallback-class="bg-gray-100 text-gray-700"
+                  image-class=""
+                />
+                <div class="min-w-0 flex-1">
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-semibold text-gray-900">{{ $commentAuthorName }}</p>
+                    @if(!empty($commentAuthor['username']))
+                      <p class="mt-1 truncate text-xs text-gray-400">&#64;{{ $commentAuthor['username'] }}</p>
+                    @endif
+                    <p class="mt-2 whitespace-pre-line text-sm leading-6 text-gray-700">{{ $comment['body'] ?? '' }}</p>
+                  </div>
+                  <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-400">
+                    <span>{{ $comment['createdAtText'] ?? '刚刚' }}</span>
+                  </div>
                 </div>
+              </div>
+            </article>
+          @empty
+            <article class="rounded-3xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm leading-6 text-gray-500">
+              还没有评论，抢先说点什么。
+            </article>
+          @endforelse
+        </div>
+      </section>
+
+      @if(!empty($commentsPagination['hasPages']))
+        <nav data-video-detail-section="pagination" data-video-detail-pagination="true" aria-label="详情页评论分页" class="rounded-[28px] border border-gray-200 bg-white/90 px-4 py-4 shadow-sm sm:px-5">
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <p class="text-sm font-medium text-gray-600">
+              共 <span class="font-semibold text-gray-950">{{ $commentsPagination['totalCount'] ?? 0 }}</span> 条评论，
+              第 {{ $commentsPagination['currentPage'] ?? 1 }} / {{ $commentsPagination['lastPage'] ?? 1 }} 页
+            </p>
+
+            <div class="flex flex-wrap items-center gap-2">
+              @if(!empty($commentsPagination['previousPageUrl']))
+                <a
+                  href="{{ $commentsPagination['previousPageUrl'] }}"
+                  aria-label="上一页"
+                  class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-950"
+                >
+                  <i class="ph ph-caret-left text-base leading-none" aria-hidden="true"></i>
+                </a>
+              @else
+                <span
+                  aria-label="上一页"
+                  class="inline-flex h-10 w-10 cursor-not-allowed items-center justify-center rounded-full border border-gray-200 text-gray-300"
+                >
+                  <i class="ph ph-caret-left text-base leading-none" aria-hidden="true"></i>
+                </span>
+              @endif
+
+              @foreach($commentsPaginationLinks as $link)
+                @if(($link['type'] ?? 'page') === 'ellipsis')
+                  <span class="inline-flex h-10 min-w-10 items-center justify-center px-1 text-sm font-semibold text-gray-400">…</span>
+                @elseif(!empty($link['active']))
+                  <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gray-950 text-sm font-semibold text-white">
+                    {{ $link['label'] ?? '' }}
+                  </span>
+                @else
+                  <a
+                    href="{{ $link['url'] ?? '#' }}"
+                    class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-950"
+                  >
+                    {{ $link['label'] ?? '' }}
+                  </a>
+                @endif
+              @endforeach
+
+              @if(!empty($commentsPagination['nextPageUrl']))
+                <a
+                  href="{{ $commentsPagination['nextPageUrl'] }}"
+                  aria-label="下一页"
+                  class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-950"
+                >
+                  <i class="ph ph-caret-right text-base leading-none" aria-hidden="true"></i>
+                </a>
+              @else
+                <span
+                  aria-label="下一页"
+                  class="inline-flex h-10 w-10 cursor-not-allowed items-center justify-center rounded-full border border-gray-200 text-gray-300"
+                >
+                  <i class="ph ph-caret-right text-base leading-none" aria-hidden="true"></i>
+                </span>
               @endif
             </div>
           </div>
-
-          <aside class="flex w-full max-w-full flex-col bg-white">
-            <div class="border-b border-gray-200 px-5 py-4 sm:px-6">
-              <div class="flex items-start justify-between gap-4">
-                <x-shortvideo.feed.author-identity
-                  :image-url="$video['authorAvatarUrl'] ?? null"
-                  :author-name="(string) ($video['authorName'] ?? '视频作者')"
-                  :author-handle="(string) ($video['authorHandle'] ?? '')"
-                  :author-initial="(string) ($video['authorInitial'] ?? 'L')"
-                  avatar-size-class="h-12 w-12"
-                  name-class="truncate text-base font-semibold text-gray-950"
-                  :handle-class="$authorHandleClass"
-                  wrapper-class="flex min-w-0 items-center gap-3"
-                  fallback-class="bg-gray-900 text-white"
-                  :profile-url="$video['authorProfileUrl'] ?? null"
-                />
-
-                @if($followViewerUserId === null && $followAuthorUserId !== null)
-                  <a
-                    href="{{ $loginUrl }}"
-                    data-auth-modal-trigger="true"
-                    data-auth-modal-panel="login"
-                    class="{{ $followButtonBaseClass }} bg-gray-900 text-white hover:bg-gray-800"
-                  >
-                    关注
-                  </a>
-                @elseif($canFollowAuthor && $followAuthorUserId !== null)
-                  <button
-                    type="button"
-                    class="{{ $followButtonBaseClass }} {{ $followedByViewer ? 'border border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-rose-500 text-white hover:bg-rose-600' }}"
-                    data-author-follow-button="true"
-                    data-author-user-id="{{ $followAuthorUserId }}"
-                    data-base-class="{{ $followButtonBaseClass }}"
-                    data-following="{{ $followedByViewer ? 'true' : 'false' }}"
-                    data-enabled="true"
-                    data-loading="false"
-                    data-label-follow="关注"
-                    data-label-following="已关注"
-                    data-label-disabled="暂不可关注"
-                    data-reload-on-success="false"
-                    aria-pressed="{{ $followedByViewer ? 'true' : 'false' }}"
-                  >
-                    {{ $followedByViewer ? '已关注' : '关注' }}
-                  </button>
-                @else
-                  <button
-                    type="button"
-                    class="{{ $followButtonBaseClass }} bg-gray-100 text-gray-400"
-                    disabled
-                  >
-                    {{ $followViewerUserId !== null && $followAuthorUserId !== null && $followViewerUserId === $followAuthorUserId ? '你自己' : '暂不可关注' }}
-                  </button>
-                @endif
-              </div>
-            </div>
-
-            <div class="flex-1 px-5 py-5 sm:px-6 sm:py-6">
-              <h1 class="text-[1.2rem] font-semibold leading-[1.42] text-gray-950 sm:text-[1.35rem]">
-                {{ $video['title'] ?? '' }}
-              </h1>
-
-              <p class="mt-3 text-sm font-normal tracking-[0.02em] text-gray-500">
-                发布日期 · {{ $video['publishedAtDetailText'] ?? $video['publishedAtText'] ?? '发布日期待更新' }}
-              </p>
-
-              <div data-video-detail-meta="true" class="mt-4 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                <span class="rounded-full bg-gray-100 px-3 py-1">{{ $viewCount }} 次观看</span>
-                <span class="rounded-full bg-gray-100 px-3 py-1">{{ $commentCount }} 条评论</span>
-              </div>
-
-              <div class="my-5 h-px bg-gray-200"></div>
-
-              <section aria-labelledby="detail-comments-title">
-                <div class="flex items-end justify-between gap-3">
-                  <div>
-                    <h2 id="detail-comments-title" class="text-base font-semibold text-gray-950">
-                      评论区
-                    </h2>
-                  </div>
-                  <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-500">
-                    {{ $video['commentsStatusText'] ?? '暂无评论' }}
-                  </span>
-                </div>
-
-                <div class="mt-5 grid gap-5">
-                  @forelse($comments as $comment)
-                    @php
-                      $commentAuthor = is_array($comment['author'] ?? null) ? $comment['author'] : [];
-                      $commentAuthorName = (string) ($commentAuthor['name'] ?? '匿名用户');
-                    @endphp
-                    <article class="grid gap-3">
-                      <div class="flex items-start gap-3">
-                        <x-ui.avatar
-                          :image-url="$commentAuthor['avatarUrl'] ?? null"
-                          :label="$commentAuthorName"
-                          :initial="(string) ($commentAuthor['initial'] ?? 'L')"
-                          size-class="h-10 w-10"
-                          fallback-class="bg-gray-100 text-gray-700"
-                          image-class=""
-                        />
-                        <div class="min-w-0 flex-1">
-                          <div class="min-w-0">
-                            <p class="truncate text-sm font-semibold text-gray-900">{{ $commentAuthorName }}</p>
-                            @if(!empty($commentAuthor['username']))
-                              <p class="mt-1 truncate text-xs text-gray-400">&#64;{{ $commentAuthor['username'] }}</p>
-                            @endif
-                            <p class="mt-2 whitespace-pre-line text-sm leading-6 text-gray-700">{{ $comment['body'] ?? '' }}</p>
-                          </div>
-                          <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-400">
-                            <span>{{ $comment['createdAtText'] ?? '刚刚' }}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </article>
-                  @empty
-                    <article class="rounded-3xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm leading-6 text-gray-500">
-                      还没有评论，抢先说点什么。
-                    </article>
-                  @endforelse
-                </div>
-              </section>
-            </div>
-
-            <div class="border-t border-gray-200 px-5 py-4 sm:px-6">
-              <div class="flex flex-col gap-3">
-                <div class="flex items-center gap-3">
-                  <div class="flex h-12 min-w-0 flex-1 items-center rounded-full bg-gray-100 px-4 text-sm text-gray-400">
-                    {{ $commentComposerPlaceholder }}
-                  </div>
-
-                  @if(!$canComment)
-                    <a
-                      href="{{ $loginUrl }}"
-                      data-auth-modal-trigger="true"
-                      data-auth-modal-panel="login"
-                      class="inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-gray-900 px-5 text-sm font-semibold text-white transition hover:bg-gray-800"
-                    >
-                      登录评论
-                    </a>
-                  @else
-                    <button
-                      type="button"
-                      class="inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-gray-900 px-5 text-sm font-semibold text-white/70"
-                      disabled
-                    >
-                      发送
-                    </button>
-                  @endif
-                </div>
-
-                <div class="flex shrink-0 items-center gap-2">
-                  <span class="inline-flex h-11 shrink-0 items-center gap-2.5 rounded-full border px-4 text-sm font-semibold {{ $likedByViewer ? 'border-rose-200 bg-rose-50 text-rose-600' : 'border-gray-200 bg-white text-gray-500' }}">
-                    <i class="{{ $likedByViewer ? 'ph-fill ph-heart' : 'ph ph-heart' }} text-[1.05rem] leading-none" aria-hidden="true"></i>
-                    <span class="text-xs font-semibold tabular-nums opacity-80">{{ $likeCount }}</span>
-                  </span>
-
-                  <span class="inline-flex h-11 shrink-0 items-center gap-2.5 rounded-full border px-4 text-sm font-semibold {{ $bookmarkedByViewer ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-gray-200 bg-white text-gray-500' }}">
-                    <i class="{{ $bookmarkedByViewer ? 'ph-fill ph-bookmark-simple' : 'ph ph-bookmark-simple' }} text-[1.05rem] leading-none" aria-hidden="true"></i>
-                    <span class="text-xs font-semibold tabular-nums opacity-80">{{ $bookmarkCount }}</span>
-                  </span>
-                </div>
-
-                @if($interactionHint !== '')
-                  <p class="text-xs leading-5 text-gray-400">{{ $interactionHint }}</p>
-                @endif
-              </div>
-            </div>
-          </aside>
-        </div>
-      </section>
+        </nav>
+      @endif
     </article>
   </div>
 

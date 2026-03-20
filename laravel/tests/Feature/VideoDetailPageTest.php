@@ -60,11 +60,18 @@ final class VideoDetailPageTest extends TestCase
             'name' => 'Comment Author',
             'username' => 'comment_author',
         ]);
-        VideoComment::query()->create([
+        $rootComment = VideoComment::query()->create([
             'video_id' => $video->id,
             'user_id' => $commentAuthor->id,
             'parent_id' => null,
             'body' => '详情页首条评论',
+        ]);
+        VideoComment::query()->create([
+            'video_id' => $video->id,
+            'user_id' => $commentAuthor->id,
+            'parent_id' => $rootComment->id,
+            'reply_to_comment_id' => $rootComment->id,
+            'body' => '详情页回复内容',
         ]);
 
         $response = $this->get(route('videos.show', ['video' => $video]));
@@ -73,12 +80,23 @@ final class VideoDetailPageTest extends TestCase
         $response->assertSee('data-video-detail-page="true"', false);
         $response->assertSee('data-video-detail-player="true"', false);
         $response->assertSee('data-video-detail-back="true"', false);
+        $response->assertDontSee('xl:grid-cols-[minmax(0,1fr)_430px]', false);
+        $response->assertSeeInOrder([
+            'data-video-detail-section="player"',
+            'data-video-detail-section="title"',
+            'data-video-detail-section="author"',
+            'data-video-detail-section="interactions"',
+            'data-video-detail-section="comments"',
+        ], false);
         $response->assertSee('SEO Detail Title', false);
         $response->assertSee('视频详情摘要', false);
         $response->assertSee('href="'.route('profile.show', ['username' => 'detailsource'], false).'"', false);
         $response->assertSee('评论区', false);
         $response->assertSee('详情页首条评论', false);
+        $response->assertDontSee('详情页回复内容', false);
         $response->assertSee('1 条评论', false);
+        $response->assertSee('发布日期 ·', false);
+        $response->assertSee('次观看', false);
         $response->assertSee('<link rel="canonical" href="'.route('videos.show', ['video' => $video]).'" />', false);
         $response->assertSee('<meta name="description" content="视频详情摘要" />', false);
         $response->assertSee('<meta property="og:title" content="SEO Detail Title" />', false);
@@ -88,6 +106,77 @@ final class VideoDetailPageTest extends TestCase
         $response->assertSee('"@type":"VideoObject"', false);
         $response->assertSee('"contentUrl":', false);
         $response->assertSee('/api/media/7001', false);
+    }
+
+    public function test_video_detail_page_paginates_root_comments_and_renders_pagination_links(): void
+    {
+        $repository = $this->useShortVideoDatabase();
+        [$source] = $repository->syncSources([
+            ['handle' => 'pagingdetail', 'enabled' => true],
+        ]);
+
+        $this->insertResolvedTweet($repository, $source['id'], [
+            'tweetId' => '7002',
+            'tweet' => [
+                'authorHandle' => 'pagingdetail',
+                'authorName' => 'Paging Detail',
+                'text' => '详情页分页样本',
+                'postedAt' => now()->subHours(3)->toISOString(),
+                'posterUrl' => 'https://example.com/paging-poster.jpg',
+            ],
+            'mediaAssets' => [
+                [
+                    'url' => 'https://example.com/paging-video.mp4',
+                    'bitrate' => 1000,
+                    'contentType' => 'video/mp4',
+                    'width' => 720,
+                    'height' => 1280,
+                    'sortOrder' => 0,
+                    'isPrimary' => true,
+                ],
+            ],
+        ]);
+
+        $video = Video::query()->where('tweet_id', '7002')->firstOrFail();
+        $commentAuthor = User::factory()->create([
+            'name' => 'Paging Author',
+            'username' => 'paging_author',
+        ]);
+
+        foreach (range(1, 12) as $index) {
+            VideoComment::query()->create([
+                'video_id' => $video->id,
+                'user_id' => $commentAuthor->id,
+                'parent_id' => null,
+                'body' => '根评论 '.$index,
+                'created_at' => now()->subMinutes(12 - $index),
+                'updated_at' => now()->subMinutes(12 - $index),
+            ]);
+        }
+
+        $firstPage = $this->get(route('videos.show', ['video' => $video]));
+
+        $firstPage->assertOk();
+        $firstPage->assertSee('根评论 12', false);
+        $firstPage->assertSee('根评论 3', false);
+        $firstPage->assertDontSee('根评论 2', false);
+        $firstPage->assertSee('12 条评论', false);
+        $firstPage->assertSee('第 1 / 2 页', false);
+        $firstPage->assertSee('data-video-detail-pagination="true"', false);
+        $firstPage->assertSee(route('videos.show', ['video' => $video], false).'?page=2', false);
+        $firstPage->assertSeeInOrder([
+            'data-video-detail-section="comments"',
+            'data-video-detail-section="pagination"',
+        ], false);
+
+        $secondPage = $this->get(route('videos.show', ['video' => $video, 'page' => 2]));
+
+        $secondPage->assertOk();
+        $secondPage->assertSee('根评论 2', false);
+        $secondPage->assertSee('根评论 1', false);
+        $secondPage->assertDontSee('根评论 12', false);
+        $secondPage->assertSee('第 2 / 2 页', false);
+        $secondPage->assertSee(route('videos.show', ['video' => $video], false), false);
     }
 
     public function test_video_detail_page_returns_not_found_for_non_public_or_unpublished_videos(): void
