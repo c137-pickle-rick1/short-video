@@ -411,16 +411,36 @@ export function renderDetailComposer({
   inputClass = "h-12 min-w-0 flex-1 rounded-full bg-gray-100 px-4 text-sm text-gray-900 outline-none placeholder:text-gray-400",
   submitClass = "inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-gray-900 px-5 text-sm font-semibold text-white transition hover:bg-gray-800"
 }) {
+  const placeholder = canComment ? "说点什么..." : "登录后参与评论";
+
   return `
     <div class="${containerClass}">
       <div class="flex flex-col gap-3">
+        <div
+          class="hidden items-center justify-between gap-3 rounded-[1.25rem] bg-gray-100 px-4 py-3"
+          data-detail-comment-reply-state="true"
+          hidden
+        >
+          <div class="min-w-0">
+            <p class="text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-gray-400">正在回复</p>
+            <p class="mt-1 truncate text-sm font-medium text-gray-700" data-detail-comment-reply-target="true"></p>
+          </div>
+          <button
+            type="button"
+            class="inline-flex h-8 shrink-0 items-center justify-center rounded-full bg-white px-3 text-xs font-semibold text-gray-500 transition hover:bg-gray-200 hover:text-gray-700"
+            data-detail-comment-reply-cancel="true"
+          >
+            取消
+          </button>
+        </div>
         <form class="${formClass}" data-detail-comment-form="true">
           <input
             type="text"
             name="body"
             maxlength="500"
             class="${inputClass}"
-            placeholder="${canComment ? "说点什么..." : "登录后参与评论"}"
+            placeholder="${placeholder}"
+            data-default-placeholder="${placeholder}"
             ${canComment ? "" : "disabled"}
             data-detail-comment-input="true"
           />

@@ -103,7 +103,7 @@ final class VideoDetailPageService
                     : null,
                 'originalUrl' => $tweet['tweet_url'] ?? null,
                 'comments' => $comments,
-                'commentsStatusText' => $comments !== [] ? count($comments).' 条评论' : '暂无评论',
+                'commentsStatusText' => (int) ($video->comment_count ?? 0) > 0 ? (int) ($video->comment_count ?? 0).' 条评论' : '暂无评论',
                 'canComment' => $canComment,
                 'commentComposerPlaceholder' => $canComment ? '说点什么...' : '登录后参与评论',
                 'interactionHint' => $canComment

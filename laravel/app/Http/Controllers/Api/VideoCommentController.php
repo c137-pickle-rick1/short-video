@@ -27,6 +27,23 @@ final class VideoCommentController extends Controller
         ]))->response();
     }
 
+    public function replies(Video $video, string $comment, EngagementRepository $engagement): JsonResponse
+    {
+        abort_unless(ctype_digit($comment), 404);
+
+        $rootCommentId = (int) $comment;
+        $replies = $engagement->listVideoCommentReplies($video->id, $rootCommentId);
+
+        abort_if($replies === null, 404);
+
+        return (new VideoCommentsResource([
+            'videoId' => $video->id,
+            'parentCommentId' => $rootCommentId,
+            'items' => $replies,
+            'totalCount' => count($replies),
+        ]))->response();
+    }
+
     public function store(
         StoreVideoCommentRequest $request,
         Video $video,
@@ -43,10 +60,26 @@ final class VideoCommentController extends Controller
         Gate::forUser($viewer)->authorize('comment', $video);
 
         $body = (string) $request->validated('body');
+        $replyToCommentId = $request->validated('replyToCommentId');
+        $item = $engagement->createVideoComment(
+            $video->id,
+            $viewer->id,
+            $body,
+            is_numeric((string) $replyToCommentId) ? (int) $replyToCommentId : null
+        );
+
+        if ($item === null) {
+            return response()->json([
+                'message' => '回复目标不存在或已删除。',
+                'errors' => [
+                    'replyToCommentId' => ['回复目标不存在或已删除。'],
+                ],
+            ], 422);
+        }
 
         return (new VideoCommentCreatedResource([
             'videoId' => $video->id,
-            'item' => $engagement->createVideoComment($video->id, $viewer->id, $body),
+            'item' => $item,
             'engagement' => $engagement->getVideoEngagementSnapshot($video->id, $viewer->id),
         ]))->response()->setStatusCode(201);
     }

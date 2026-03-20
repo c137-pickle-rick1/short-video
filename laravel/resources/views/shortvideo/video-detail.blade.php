@@ -240,48 +240,41 @@
 
             <div class="border-t border-gray-200 px-5 py-4 sm:px-6">
               <div class="flex flex-col gap-3">
-                <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
-                  <div class="flex shrink-0 items-center gap-2">
-                    <span class="inline-flex h-11 shrink-0 items-center gap-2.5 rounded-full border px-4 text-sm font-semibold {{ $likedByViewer ? 'border-rose-200 bg-rose-50 text-rose-600' : 'border-gray-200 bg-white text-gray-500' }}">
-                      <i class="{{ $likedByViewer ? 'ph-fill ph-heart' : 'ph ph-heart' }} text-[1.05rem] leading-none" aria-hidden="true"></i>
-                      <span class="text-xs font-semibold tabular-nums opacity-80">{{ $likeCount }}</span>
-                    </span>
-
-                    <span class="inline-flex h-11 shrink-0 items-center gap-2.5 rounded-full border px-4 text-sm font-semibold {{ $bookmarkedByViewer ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-gray-200 bg-white text-gray-500' }}">
-                      <i class="{{ $bookmarkedByViewer ? 'ph-fill ph-bookmark-simple' : 'ph ph-bookmark-simple' }} text-[1.05rem] leading-none" aria-hidden="true"></i>
-                      <span class="text-xs font-semibold tabular-nums opacity-80">{{ $bookmarkCount }}</span>
-                    </span>
-
-                    <span class="inline-flex h-11 shrink-0 items-center gap-2.5 rounded-full border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-500">
-                      <i class="ph ph-chat-circle text-[1.05rem] leading-none" aria-hidden="true"></i>
-                      <span class="text-xs font-semibold tabular-nums opacity-80">{{ $commentCount }}</span>
-                    </span>
+                <div class="flex items-center gap-3">
+                  <div class="flex h-12 min-w-0 flex-1 items-center rounded-full bg-gray-100 px-4 text-sm text-gray-400">
+                    {{ $commentComposerPlaceholder }}
                   </div>
 
-                  <div class="flex min-w-0 flex-1 items-center gap-3">
-                    <div class="flex h-12 min-w-0 flex-1 items-center rounded-full bg-gray-100 px-4 text-sm text-gray-400">
-                      {{ $commentComposerPlaceholder }}
-                    </div>
+                  @if(!$canComment)
+                    <a
+                      href="{{ $loginUrl }}"
+                      data-auth-modal-trigger="true"
+                      data-auth-modal-panel="login"
+                      class="inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-gray-900 px-5 text-sm font-semibold text-white transition hover:bg-gray-800"
+                    >
+                      登录评论
+                    </a>
+                  @else
+                    <button
+                      type="button"
+                      class="inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-gray-900 px-5 text-sm font-semibold text-white/70"
+                      disabled
+                    >
+                      发送
+                    </button>
+                  @endif
+                </div>
 
-                    @if(!$canComment)
-                      <a
-                        href="{{ $loginUrl }}"
-                        data-auth-modal-trigger="true"
-                        data-auth-modal-panel="login"
-                        class="inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-gray-900 px-5 text-sm font-semibold text-white transition hover:bg-gray-800"
-                      >
-                        登录评论
-                      </a>
-                    @else
-                      <button
-                        type="button"
-                        class="inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-gray-900 px-5 text-sm font-semibold text-white/70"
-                        disabled
-                      >
-                        发送
-                      </button>
-                    @endif
-                  </div>
+                <div class="flex shrink-0 items-center gap-2">
+                  <span class="inline-flex h-11 shrink-0 items-center gap-2.5 rounded-full border px-4 text-sm font-semibold {{ $likedByViewer ? 'border-rose-200 bg-rose-50 text-rose-600' : 'border-gray-200 bg-white text-gray-500' }}">
+                    <i class="{{ $likedByViewer ? 'ph-fill ph-heart' : 'ph ph-heart' }} text-[1.05rem] leading-none" aria-hidden="true"></i>
+                    <span class="text-xs font-semibold tabular-nums opacity-80">{{ $likeCount }}</span>
+                  </span>
+
+                  <span class="inline-flex h-11 shrink-0 items-center gap-2.5 rounded-full border px-4 text-sm font-semibold {{ $bookmarkedByViewer ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-gray-200 bg-white text-gray-500' }}">
+                    <i class="{{ $bookmarkedByViewer ? 'ph-fill ph-bookmark-simple' : 'ph ph-bookmark-simple' }} text-[1.05rem] leading-none" aria-hidden="true"></i>
+                    <span class="text-xs font-semibold tabular-nums opacity-80">{{ $bookmarkCount }}</span>
+                  </span>
                 </div>
 
                 @if($interactionHint !== '')

@@ -45,11 +45,152 @@ final class InteractionApiTest extends TestCase
         ])
             ->assertCreated()
             ->assertJsonPath('item.body', '第一条真实评论')
+            ->assertJsonPath('item.replyCount', 0)
+            ->assertJsonPath('item.isDeleted', false)
             ->assertJsonPath('engagement.commentCount', 1);
 
         $this->getJson("/api/videos/{$video->id}/comments")
             ->assertOk()
-            ->assertJsonPath('items.0.body', '第一条真实评论');
+            ->assertJsonPath('items.0.body', '第一条真实评论')
+            ->assertJsonPath('items.0.replyCount', 0);
+    }
+
+    public function test_comment_reply_endpoints_create_two_level_threads_and_flatten_reply_to_reply(): void
+    {
+        $repository = $this->useShortVideoDatabase();
+        $viewer = User::factory()->create([
+            'username' => 'thread_root_viewer',
+            'email' => 'thread_root_viewer@example.com',
+        ]);
+        $replier = User::factory()->create([
+            'username' => 'thread_replier',
+            'email' => 'thread_replier@example.com',
+        ]);
+        $nestedReplier = User::factory()->create([
+            'username' => 'thread_nested_replier',
+            'email' => 'thread_nested_replier@example.com',
+        ]);
+        [$source] = $repository->syncSources([
+            ['handle' => 'demo', 'enabled' => true],
+        ]);
+
+        $this->insertResolvedTweet($repository, $source['id'], [
+            'tweetId' => '5011',
+            'tweet' => [
+                'text' => '评论线程样本',
+            ],
+        ]);
+
+        $video = Video::query()->where('tweet_id', '5011')->firstOrFail();
+
+        $rootResponse = $this->actingAs($viewer)->postJson("/api/videos/{$video->id}/comments", [
+            'body' => '主评论',
+        ]);
+        $rootResponse->assertCreated();
+        $rootCommentId = (int) $rootResponse->json('item.id');
+
+        $replyResponse = $this->actingAs($replier)->postJson("/api/videos/{$video->id}/comments", [
+            'body' => '一级回复',
+            'replyToCommentId' => $rootCommentId,
+        ]);
+        $replyResponse
+            ->assertCreated()
+            ->assertJsonPath('item.replyToCommentId', $rootCommentId)
+            ->assertJsonPath('item.replyToAuthor.username', $viewer->username)
+            ->assertJsonPath('engagement.commentCount', 2);
+        $replyCommentId = (int) $replyResponse->json('item.id');
+
+        $nestedReplyResponse = $this->actingAs($nestedReplier)->postJson("/api/videos/{$video->id}/comments", [
+            'body' => '回复回复',
+            'replyToCommentId' => $replyCommentId,
+        ]);
+        $nestedReplyResponse
+            ->assertCreated()
+            ->assertJsonPath('item.replyToCommentId', $replyCommentId)
+            ->assertJsonPath('item.replyToAuthor.username', $replier->username)
+            ->assertJsonPath('engagement.commentCount', 3);
+
+        $this->getJson("/api/videos/{$video->id}/comments")
+            ->assertOk()
+            ->assertJsonPath('items.0.body', '主评论')
+            ->assertJsonPath('items.0.replyCount', 2)
+            ->assertJsonCount(1, 'items');
+
+        $this->getJson("/api/videos/{$video->id}/comments/{$rootCommentId}/replies")
+            ->assertOk()
+            ->assertJsonPath('parentCommentId', $rootCommentId)
+            ->assertJsonPath('items.0.body', '一级回复')
+            ->assertJsonPath('items.0.replyToCommentId', $rootCommentId)
+            ->assertJsonPath('items.1.body', '回复回复')
+            ->assertJsonPath('items.1.replyToCommentId', $replyCommentId)
+            ->assertJsonCount(2, 'items');
+
+        $replyComment = VideoComment::withTrashed()->findOrFail($replyCommentId);
+        $nestedReplyComment = VideoComment::withTrashed()->where('body', '回复回复')->firstOrFail();
+
+        $this->assertSame($rootCommentId, $replyComment->parent_id);
+        $this->assertSame($rootCommentId, $nestedReplyComment->parent_id);
+        $this->assertSame($replyCommentId, $nestedReplyComment->reply_to_comment_id);
+    }
+
+    public function test_comment_reply_target_must_belong_to_same_video_and_not_be_deleted(): void
+    {
+        $repository = $this->useShortVideoDatabase();
+        $viewer = User::factory()->create([
+            'username' => 'reply_validation_viewer',
+            'email' => 'reply_validation_viewer@example.com',
+        ]);
+        [$source] = $repository->syncSources([
+            ['handle' => 'demo', 'enabled' => true],
+        ]);
+
+        $this->insertResolvedTweet($repository, $source['id'], [
+            'tweetId' => '5012',
+            'tweet' => [
+                'text' => '回复校验样本 A',
+            ],
+        ]);
+        $this->insertResolvedTweet($repository, $source['id'], [
+            'tweetId' => '5013',
+            'tweet' => [
+                'text' => '回复校验样本 B',
+            ],
+        ]);
+
+        $video = Video::query()->where('tweet_id', '5012')->firstOrFail();
+        $otherVideo = Video::query()->where('tweet_id', '5013')->firstOrFail();
+
+        $deletedComment = VideoComment::query()->create([
+            'video_id' => $video->id,
+            'user_id' => $viewer->id,
+            'body' => '已删除目标',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $deletedComment->forceFill([
+            'deleted_at' => now(),
+        ])->save();
+        $otherVideoComment = VideoComment::query()->create([
+            'video_id' => $otherVideo->id,
+            'user_id' => $viewer->id,
+            'body' => '其他视频评论',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($viewer)->postJson("/api/videos/{$video->id}/comments", [
+            'body' => '跨视频回复',
+            'replyToCommentId' => $otherVideoComment->id,
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('replyToCommentId');
+
+        $this->actingAs($viewer)->postJson("/api/videos/{$video->id}/comments", [
+            'body' => '回复已删除目标',
+            'replyToCommentId' => $deletedComment->id,
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('replyToCommentId');
     }
 
     public function test_bookmark_delete_endpoint_removes_only_current_viewer_bookmark(): void
@@ -201,8 +342,76 @@ final class InteractionApiTest extends TestCase
             ->assertJsonPath('removed', true)
             ->assertJsonPath('engagement.commentCount', 1);
 
-        $this->assertFalse(VideoComment::query()->whereKey($comment->id)->exists());
+        $comment = VideoComment::withTrashed()->findOrFail($comment->id);
+        $this->assertNotNull($comment->deleted_at);
         $this->assertTrue(VideoComment::query()->whereKey($otherComment->id)->exists());
+
+        $this->getJson("/api/videos/{$video->id}/comments")
+            ->assertOk()
+            ->assertJsonCount(1, 'items')
+            ->assertJsonPath('items.0.id', $otherComment->id);
+    }
+
+    public function test_comment_delete_endpoint_keeps_tombstone_for_root_threads_with_replies(): void
+    {
+        $repository = $this->useShortVideoDatabase();
+        $viewer = User::factory()->create([
+            'username' => 'comment_thread_delete_viewer',
+            'email' => 'comment_thread_delete_viewer@example.com',
+        ]);
+        $replier = User::factory()->create([
+            'username' => 'comment_thread_delete_replier',
+            'email' => 'comment_thread_delete_replier@example.com',
+        ]);
+        [$source] = $repository->syncSources([
+            ['handle' => 'demo', 'enabled' => true],
+        ]);
+
+        $this->insertResolvedTweet($repository, $source['id'], [
+            'tweetId' => '5014',
+            'tweet' => [
+                'text' => '评论线程删除样本',
+            ],
+        ]);
+
+        $video = Video::query()->where('tweet_id', '5014')->firstOrFail();
+        $rootComment = VideoComment::query()->create([
+            'video_id' => $video->id,
+            'user_id' => $viewer->id,
+            'body' => '由当前用户删除的根评论',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $replyComment = VideoComment::query()->create([
+            'video_id' => $video->id,
+            'user_id' => $replier->id,
+            'parent_id' => $rootComment->id,
+            'reply_to_comment_id' => $rootComment->id,
+            'body' => '保留在线程中的回复',
+            'created_at' => now()->addSecond(),
+            'updated_at' => now()->addSecond(),
+        ]);
+
+        $this->actingAs($viewer)->deleteJson("/api/videos/{$video->id}/comments/{$rootComment->id}")
+            ->assertOk()
+            ->assertJsonPath('removed', true)
+            ->assertJsonPath('engagement.commentCount', 1);
+
+        $rootComment = VideoComment::withTrashed()->findOrFail($rootComment->id);
+        $this->assertNotNull($rootComment->deleted_at);
+
+        $this->getJson("/api/videos/{$video->id}/comments")
+            ->assertOk()
+            ->assertJsonPath('items.0.id', $rootComment->id)
+            ->assertJsonPath('items.0.isDeleted', true)
+            ->assertJsonPath('items.0.body', '该评论已删除')
+            ->assertJsonPath('items.0.replyCount', 1);
+
+        $this->getJson("/api/videos/{$video->id}/comments/{$rootComment->id}/replies")
+            ->assertOk()
+            ->assertJsonPath('items.0.id', $replyComment->id)
+            ->assertJsonPath('items.0.body', '保留在线程中的回复')
+            ->assertJsonPath('items.0.replyToCommentId', $rootComment->id);
     }
 
     public function test_comment_and_reaction_endpoints_require_login(): void

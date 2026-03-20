@@ -5,9 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class VideoComment extends Model
 {
+    use SoftDeletes;
+
     /**
      * @var list<string>
      */
@@ -15,6 +18,7 @@ class VideoComment extends Model
         'video_id',
         'user_id',
         'parent_id',
+        'reply_to_comment_id',
         'body',
         'edited_at',
     ];
@@ -26,6 +30,7 @@ class VideoComment extends Model
     {
         return [
             'edited_at' => 'datetime',
+            'deleted_at' => 'datetime',
         ];
     }
 
@@ -47,5 +52,10 @@ class VideoComment extends Model
     public function replies(): HasMany
     {
         return $this->hasMany(self::class, 'parent_id');
+    }
+
+    public function replyToComment(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'reply_to_comment_id');
     }
 }

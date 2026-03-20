@@ -66,11 +66,13 @@ class Video extends Model
 
     public function comments(): HasMany
     {
-        return $this->hasMany(VideoComment::class)->whereNull('parent_id');
+        return $this->hasMany(VideoComment::class)
+            ->whereNull('parent_id')
+            ->whereNull('deleted_at');
     }
 
     public function allComments(): HasMany
     {
-        return $this->hasMany(VideoComment::class);
+        return $this->hasMany(VideoComment::class)->whereNull('deleted_at');
     }
 }

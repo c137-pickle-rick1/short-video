@@ -23,6 +23,7 @@ Route::delete('/users/{user}/follow', [UserFollowController::class, 'destroy']);
 Route::post('/videos', [VideoUploadController::class, 'store']);
 Route::post('/videos/{video}/views', [VideoViewController::class, 'store']);
 Route::get('/videos/{video}/comments', [VideoCommentController::class, 'index']);
+Route::get('/videos/{video}/comments/{comment}/replies', [VideoCommentController::class, 'replies']);
 Route::post('/videos/{video}/comments', [VideoCommentController::class, 'store']);
 Route::delete('/videos/{video}/comments/{comment}', [VideoCommentController::class, 'destroy']);
 Route::post('/videos/{video}/likes', [VideoLikeController::class, 'store']);

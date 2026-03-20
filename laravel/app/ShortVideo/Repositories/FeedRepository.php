@@ -306,7 +306,7 @@ final class FeedRepository
                         s.handle AS sourceHandle,
                         COALESCE((SELECT COUNT(*) FROM video_likes vl WHERE vl.video_id = v.id), 0) AS likeCount,
                         COALESCE((SELECT COUNT(*) FROM video_bookmarks vb WHERE vb.video_id = v.id), 0) AS bookmarkCount,
-                        COALESCE((SELECT COUNT(*) FROM video_comments vc WHERE vc.video_id = v.id), 0) AS commentCount,
+                        COALESCE((SELECT COUNT(*) FROM video_comments vc WHERE vc.video_id = v.id AND vc.deleted_at IS NULL), 0) AS commentCount,
                         COALESCE((SELECT COUNT(*) FROM video_views vv WHERE vv.video_id = v.id), 0) AS viewCount,
                         CASE
                             WHEN ? IS NOT NULL AND EXISTS (
@@ -500,7 +500,7 @@ final class FeedRepository
                         s.handle AS sourceHandle,
                         COALESCE((SELECT COUNT(*) FROM video_likes vl WHERE vl.video_id = v.id), 0) AS likeCount,
                         COALESCE((SELECT COUNT(*) FROM video_bookmarks vb WHERE vb.video_id = v.id), 0) AS bookmarkCount,
-                        COALESCE((SELECT COUNT(*) FROM video_comments vc WHERE vc.video_id = v.id), 0) AS commentCount,
+                        COALESCE((SELECT COUNT(*) FROM video_comments vc WHERE vc.video_id = v.id AND vc.deleted_at IS NULL), 0) AS commentCount,
                         COALESCE((SELECT COUNT(*) FROM video_views vv WHERE vv.video_id = v.id), 0) AS viewCount,
                         CASE
                             WHEN EXISTS (
@@ -579,6 +579,7 @@ final class FeedRepository
                             vc.parent_id AS parentCommentId
                         FROM video_comments vc
                         WHERE vc.user_id = ?
+                          AND vc.deleted_at IS NULL
                     )
                     SELECT
                         interaction_events.interactionType,
@@ -650,7 +651,7 @@ final class FeedRepository
                         s.handle AS sourceHandle,
                         COALESCE((SELECT COUNT(*) FROM video_likes vl WHERE vl.video_id = v.id), 0) AS likeCount,
                         COALESCE((SELECT COUNT(*) FROM video_bookmarks vb WHERE vb.video_id = v.id), 0) AS bookmarkCount,
-                        COALESCE((SELECT COUNT(*) FROM video_comments vc WHERE vc.video_id = v.id), 0) AS commentCount,
+                        COALESCE((SELECT COUNT(*) FROM video_comments vc WHERE vc.video_id = v.id AND vc.deleted_at IS NULL), 0) AS commentCount,
                         COALESCE((SELECT COUNT(*) FROM video_views vv WHERE vv.video_id = v.id), 0) AS viewCount,
                         CASE
                             WHEN EXISTS (
@@ -744,6 +745,7 @@ final class FeedRepository
                             vc.created_at AS collectedAt
                         FROM video_comments vc
                         WHERE vc.user_id = ?
+                          AND vc.deleted_at IS NULL
                     ) interaction_events
                     GROUP BY interaction_events.video_id
                 SQL,
@@ -786,6 +788,7 @@ final class FeedRepository
                     SELECT vc.video_id AS videoId
                     FROM video_comments vc
                     WHERE vc.user_id = ?
+                      AND vc.deleted_at IS NULL
                 )
                 SELECT COUNT(*) AS aggregateCount
                 FROM interaction_events

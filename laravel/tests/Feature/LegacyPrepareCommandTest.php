@@ -22,6 +22,8 @@ final class LegacyPrepareCommandTest extends TestCase
         $this->assertTrue($schema->hasTable('user_external_accounts'));
         $this->assertTrue($schema->hasColumn('sources', 'user_id'));
         $this->assertTrue($schema->hasColumn('users', 'account_type'));
+        $this->assertTrue($schema->hasColumn('video_comments', 'reply_to_comment_id'));
+        $this->assertTrue($schema->hasColumn('video_comments', 'deleted_at'));
 
         $this->artisan('migrate --force')->assertExitCode(0);
 

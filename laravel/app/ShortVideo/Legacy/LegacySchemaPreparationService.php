@@ -21,6 +21,7 @@ final class LegacySchemaPreparationService
         return [
             'bootstrap' => $this->ensureBootstrapSchema(),
             'socialGraph' => $this->ensureSocialGraphSchema(),
+            'commentThreading' => $this->ensureVideoCommentThreadingSchema(),
             'externalCreators' => $this->ensureExternalCreatorSchema(),
         ];
     }
@@ -227,8 +228,10 @@ final class LegacySchemaPreparationService
             $table->foreignId('video_id')->constrained('videos')->cascadeOnDelete();
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->foreignId('parent_id')->nullable()->constrained('video_comments')->cascadeOnDelete();
+            $table->foreignId('reply_to_comment_id')->nullable()->constrained('video_comments')->nullOnDelete();
             $table->text('body');
             $table->timestamp('edited_at')->nullable();
+            $table->timestamp('deleted_at')->nullable();
             $table->timestamps();
             $table->index(['video_id', 'created_at']);
             $table->index(['parent_id', 'created_at']);
@@ -236,6 +239,29 @@ final class LegacySchemaPreparationService
 
         return [
             'tablesCreated' => $tablesCreated,
+        ];
+    }
+
+    /**
+     * @return array{columnsAdded:int,indexesEnsured:int}
+     */
+    public function ensureVideoCommentThreadingSchema(): array
+    {
+        $columnsAdded = 0;
+
+        $columnsAdded += $this->ensureVideoCommentReplyToCommentIdColumn() ? 1 : 0;
+        $columnsAdded += $this->ensureVideoCommentDeletedAtColumn() ? 1 : 0;
+
+        $this->db->statement(
+            'CREATE INDEX IF NOT EXISTS idx_video_comments_video_deleted_parent_created ON video_comments(video_id, deleted_at, parent_id, created_at, id)'
+        );
+        $this->db->statement(
+            'CREATE INDEX IF NOT EXISTS idx_video_comments_reply_to_created ON video_comments(reply_to_comment_id, created_at, id)'
+        );
+
+        return [
+            'columnsAdded' => $columnsAdded,
+            'indexesEnsured' => 2,
         ];
     }
 
@@ -351,6 +377,44 @@ final class LegacySchemaPreparationService
 
         $this->schema()->table('sources', function (Blueprint $table): void {
             $table->string('last_seen_tweet_id')->nullable();
+        });
+
+        return true;
+    }
+
+    private function ensureVideoCommentReplyToCommentIdColumn(): bool
+    {
+        if (! $this->schema()->hasTable('video_comments') || $this->schema()->hasColumn('video_comments', 'reply_to_comment_id')) {
+            return false;
+        }
+
+        if ($this->db->getDriverName() === 'sqlite') {
+            $this->db->statement('ALTER TABLE video_comments ADD COLUMN reply_to_comment_id INTEGER NULL');
+
+            return true;
+        }
+
+        $this->schema()->table('video_comments', function (Blueprint $table): void {
+            $table->unsignedBigInteger('reply_to_comment_id')->nullable();
+        });
+
+        return true;
+    }
+
+    private function ensureVideoCommentDeletedAtColumn(): bool
+    {
+        if (! $this->schema()->hasTable('video_comments') || $this->schema()->hasColumn('video_comments', 'deleted_at')) {
+            return false;
+        }
+
+        if ($this->db->getDriverName() === 'sqlite') {
+            $this->db->statement('ALTER TABLE video_comments ADD COLUMN deleted_at DATETIME NULL');
+
+            return true;
+        }
+
+        $this->schema()->table('video_comments', function (Blueprint $table): void {
+            $table->timestamp('deleted_at')->nullable();
         });
 
         return true;

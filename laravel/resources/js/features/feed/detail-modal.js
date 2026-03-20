@@ -120,17 +120,178 @@ function formatCommentDate(value) {
     .replaceAll("/", "-");
 }
 
-function renderCommentMarkup(comment) {
+function getCommentAuthorName(comment) {
   const author = comment?.author || {};
-  const authorName = String(author.name || author.username || "匿名用户");
-  const authorUsername = String(author.username || "");
-  const body = String(comment?.body || "");
+  return String(author.name || author.username || "匿名用户");
+}
+
+function getCommentAuthorUsername(comment) {
+  return String(comment?.author?.username || "");
+}
+
+function getCommentReplyAuthorLabel(comment) {
+  const authorName = getCommentAuthorName(comment);
+  const authorUsername = getCommentAuthorUsername(comment);
+
+  return authorUsername ? `@${authorUsername}` : authorName;
+}
+
+function getReplyTargetLabel(comment) {
+  const replyToAuthor = comment?.replyToAuthor || {};
+  const replyToUsername = String(replyToAuthor.username || "").trim();
+  const replyToName = String(replyToAuthor.name || "").trim();
+
+  if (replyToUsername) {
+    return `@${replyToUsername}`;
+  }
+
+  return replyToName;
+}
+
+function renderCommentReplyButtonMarkup(comment, rootCommentId) {
+  const commentId = Number.parseInt(String(comment?.id || ""), 10);
+  const normalizedRootCommentId = Number.parseInt(String(rootCommentId || ""), 10);
+  if (!Number.isInteger(commentId) || commentId <= 0 || !Number.isInteger(normalizedRootCommentId) || normalizedRootCommentId <= 0) {
+    return "";
+  }
+
+  if (comment?.isDeleted === true) {
+    return "";
+  }
 
   return `
-    <article class="grid gap-3">
+    <button
+      type="button"
+      class="inline-flex items-center justify-center rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-500 transition hover:bg-gray-200 hover:text-gray-700"
+      data-detail-comment-reply="true"
+      data-root-comment-id="${escapeHtml(String(normalizedRootCommentId))}"
+      data-reply-to-comment-id="${escapeHtml(String(commentId))}"
+      data-reply-to-author-label="${escapeHtml(getCommentReplyAuthorLabel(comment))}"
+    >
+      回复
+    </button>
+  `;
+}
+
+function renderReplyMarkup(reply, rootCommentId) {
+  const authorName = getCommentAuthorName(reply);
+  const authorUsername = getCommentAuthorUsername(reply);
+  const body = String(reply?.body || "");
+  const replyTargetLabel = getReplyTargetLabel(reply);
+  const bodyClass =
+    reply?.isDeleted === true
+      ? "mt-1 text-sm leading-6 text-gray-400 italic"
+      : "mt-1 text-sm leading-6 text-gray-700";
+
+  return `
+    <article class="grid gap-2" data-detail-comment-item="true" data-comment-id="${escapeHtml(String(reply?.id || ""))}" data-comment-kind="reply">
       <div class="flex items-start gap-3">
         ${renderAvatarMarkup({
-          imageUrl: author.avatarUrl || null,
+          imageUrl: reply?.author?.avatarUrl || null,
+          label: authorName,
+          initial: getAuthorInitial(authorName),
+          sizeClass: "h-9 w-9",
+          fallbackClass: "bg-gray-100 text-gray-700"
+        })}
+        <div class="min-w-0 flex-1">
+          <div class="min-w-0">
+            <p class="truncate text-sm font-semibold text-gray-900">${escapeHtml(authorName)}</p>
+            <p class="mt-1 truncate text-xs text-gray-400">${escapeHtml(authorUsername ? `@${authorUsername}` : "")}</p>
+            ${
+              replyTargetLabel
+                ? `<p class="mt-2 text-xs font-semibold text-rose-500">${escapeHtml(`回复 ${replyTargetLabel}`)}</p>`
+                : ""
+            }
+            <p class="${bodyClass}">${escapeHtml(body)}</p>
+          </div>
+          <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-400">
+            <span>${escapeHtml(formatCommentDate(reply?.createdAt))}</span>
+            ${renderCommentReplyButtonMarkup(reply, rootCommentId)}
+          </div>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function renderReplyListMarkup(rootCommentId, replies, { isLoading = false, hasError = false } = {}) {
+  if (isLoading) {
+    return `
+      <div class="ml-[3.25rem] rounded-[1.25rem] border border-dashed border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium text-gray-500">
+        加载回复中...
+      </div>
+    `;
+  }
+
+  if (hasError) {
+    return `
+      <div class="ml-[3.25rem] rounded-[1.25rem] border border-dashed border-rose-200 bg-rose-50 px-4 py-3 text-xs font-medium text-rose-500">
+        回复加载失败，请重试。
+      </div>
+    `;
+  }
+
+  if (!Array.isArray(replies) || replies.length === 0) {
+    return `
+      <div class="ml-[3.25rem] rounded-[1.25rem] border border-dashed border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium text-gray-500">
+        还没有回复。
+      </div>
+    `;
+  }
+
+  return `
+    <div class="ml-[3.25rem] grid gap-3 border-l border-gray-200 pl-4" data-detail-comment-replies="true">
+      ${replies.map((reply) => renderReplyMarkup(reply, rootCommentId)).join("")}
+    </div>
+  `;
+}
+
+function renderCommentThreadMarkup(comment, state) {
+  const authorName = getCommentAuthorName(comment);
+  const authorUsername = getCommentAuthorUsername(comment);
+  const body = String(comment?.body || "");
+  const rootCommentId = Number.parseInt(String(comment?.id || ""), 10);
+  const replyCount = Math.max(0, Number(comment?.replyCount || 0));
+  const repliesExpanded = Number.isInteger(rootCommentId) && state.expandedRootIds.has(rootCommentId);
+  const repliesLoading = Number.isInteger(rootCommentId) && state.loadingReplyRootIds.has(rootCommentId);
+  const repliesError = Number.isInteger(rootCommentId) && state.failedReplyRootIds.has(rootCommentId);
+  const replies = Number.isInteger(rootCommentId) ? state.repliesByRootId.get(rootCommentId) || [] : [];
+  const bodyClass =
+    comment?.isDeleted === true
+      ? "mt-2 text-sm leading-6 text-gray-400 italic"
+      : "mt-2 text-sm leading-6 text-gray-700";
+  const toggleLabel =
+    repliesLoading
+      ? "加载回复中..."
+      : repliesError
+        ? "重试回复列表"
+        : repliesExpanded
+          ? "收起回复"
+          : `查看 ${replyCount} 条回复`;
+  const toggleMarkup =
+    replyCount > 0 && Number.isInteger(rootCommentId)
+      ? `
+        <button
+          type="button"
+          class="inline-flex items-center justify-center rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-500 transition hover:bg-rose-100 hover:text-rose-600"
+          data-detail-comment-replies-toggle="true"
+          data-root-comment-id="${escapeHtml(String(rootCommentId))}"
+        >
+          ${escapeHtml(toggleLabel)}
+        </button>
+      `
+      : "";
+
+  return `
+    <article
+      class="grid gap-3 rounded-[1.5rem] border border-gray-200/80 bg-white/80 p-4 shadow-sm"
+      data-detail-comment-thread="true"
+      data-comment-id="${escapeHtml(String(comment?.id || ""))}"
+      data-comment-kind="root"
+    >
+      <div class="flex items-start gap-3">
+        ${renderAvatarMarkup({
+          imageUrl: comment?.author?.avatarUrl || null,
           label: authorName,
           initial: getAuthorInitial(authorName),
           sizeClass: "h-10 w-10",
@@ -141,14 +302,17 @@ function renderCommentMarkup(comment) {
             <div class="min-w-0">
               <p class="truncate text-sm font-semibold text-gray-900">${escapeHtml(authorName)}</p>
               <p class="mt-1 truncate text-xs text-gray-400">${escapeHtml(authorUsername ? `@${authorUsername}` : "")}</p>
-              <p class="mt-2 text-sm leading-6 text-gray-700">${escapeHtml(body)}</p>
+              <p class="${bodyClass}">${escapeHtml(body)}</p>
             </div>
           </div>
           <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-400">
             <span>${escapeHtml(formatCommentDate(comment?.createdAt))}</span>
+            ${renderCommentReplyButtonMarkup(comment, rootCommentId)}
+            ${toggleMarkup}
           </div>
         </div>
       </div>
+      ${repliesExpanded ? renderReplyListMarkup(rootCommentId, replies, { isLoading: repliesLoading, hasError: repliesError }) : ""}
     </article>
   `;
 }
@@ -252,6 +416,7 @@ export function createDetailModalController({
   let currentTweetId = "";
   let currentMobileIndex = -1;
   let commentsLoadToken = 0;
+  let commentThreadStates = new Map();
   let mobileViewport = null;
   let mobileTrack = null;
   let mobileCommentsLayer = null;
@@ -372,6 +537,7 @@ export function createDetailModalController({
     destroyMobilePlayer();
     destroyMobileProgress();
     commentsLoadToken += 1;
+    commentThreadStates = new Map();
     resetMobileReferences();
     pauseVideoElements(detailModalPanel);
     clearDetailModalNodes();
@@ -414,6 +580,77 @@ export function createDetailModalController({
       likedByViewer: engagement?.likedByViewer === true,
       bookmarkedByViewer: engagement?.bookmarkedByViewer === true
     };
+  }
+
+  function createCommentThreadState() {
+    return {
+      rootComments: [],
+      repliesByRootId: new Map(),
+      expandedRootIds: new Set(),
+      loadingReplyRootIds: new Set(),
+      failedReplyRootIds: new Set(),
+      replyTarget: null
+    };
+  }
+
+  function getCommentThreadState(tweetId = activeCommentsTweetId || currentTweetId) {
+    const normalizedTweetId = String(tweetId || "");
+    if (!normalizedTweetId) {
+      return createCommentThreadState();
+    }
+
+    if (!commentThreadStates.has(normalizedTweetId)) {
+      commentThreadStates.set(normalizedTweetId, createCommentThreadState());
+    }
+
+    return commentThreadStates.get(normalizedTweetId);
+  }
+
+  function replaceCommentThreads(tweetId, comments) {
+    const state = getCommentThreadState(tweetId);
+    const normalizedComments = Array.isArray(comments) ? comments : [];
+    const validRootIds = new Set(
+      normalizedComments
+        .map((comment) => Number.parseInt(String(comment?.id || ""), 10))
+        .filter((commentId) => Number.isInteger(commentId) && commentId > 0)
+    );
+
+    state.rootComments = normalizedComments;
+
+    for (const rootCommentId of Array.from(state.repliesByRootId.keys())) {
+      if (!validRootIds.has(rootCommentId)) {
+        state.repliesByRootId.delete(rootCommentId);
+      }
+    }
+
+    state.expandedRootIds = new Set(Array.from(state.expandedRootIds).filter((rootCommentId) => validRootIds.has(rootCommentId)));
+    state.loadingReplyRootIds = new Set(
+      Array.from(state.loadingReplyRootIds).filter((rootCommentId) => validRootIds.has(rootCommentId))
+    );
+    state.failedReplyRootIds = new Set(
+      Array.from(state.failedReplyRootIds).filter((rootCommentId) => validRootIds.has(rootCommentId))
+    );
+
+    if (state.replyTarget && !validRootIds.has(state.replyTarget.rootCommentId)) {
+      state.replyTarget = null;
+    }
+  }
+
+  function clearCommentReplyTarget(tweetId = activeCommentsTweetId || currentTweetId) {
+    const state = getCommentThreadState(tweetId);
+    state.replyTarget = null;
+    syncCommentComposer(tweetId);
+  }
+
+  function setCommentReplyTarget(tweetId, replyTarget) {
+    const state = getCommentThreadState(tweetId);
+    state.replyTarget = replyTarget;
+    syncCommentComposer(tweetId);
+
+    const input = getCommentsRoot()?.querySelector?.("[data-detail-comment-input='true']");
+    if (input instanceof HTMLInputElement) {
+      input.focus();
+    }
   }
 
   function updateAuthorFollowState(authorUserId, following) {
@@ -772,7 +1009,46 @@ export function createDetailModalController({
     return detailModalPanel;
   }
 
-  function renderComments(comments, tweetId = activeCommentsTweetId || currentTweetId) {
+  function syncCommentComposer(tweetId = activeCommentsTweetId || currentTweetId) {
+    const root = getCommentsRoot();
+    if (!(root instanceof HTMLElement)) {
+      return;
+    }
+
+    if (isMobileMode() && activeCommentsTweetId && String(activeCommentsTweetId) !== String(tweetId || "")) {
+      return;
+    }
+
+    if (!isMobileMode() && currentTweetId && String(currentTweetId) !== String(tweetId || "")) {
+      return;
+    }
+
+    const state = getCommentThreadState(tweetId);
+    const input = root.querySelector("[data-detail-comment-input='true']");
+    const replyState = root.querySelector("[data-detail-comment-reply-state='true']");
+    const replyTarget = root.querySelector("[data-detail-comment-reply-target='true']");
+
+    if (!(input instanceof HTMLInputElement) || !(replyState instanceof HTMLElement) || !(replyTarget instanceof HTMLElement)) {
+      return;
+    }
+
+    const defaultPlaceholder = input.dataset.defaultPlaceholder || "说点什么...";
+
+    if (!state.replyTarget) {
+      replyState.hidden = true;
+      replyState.classList.add("hidden");
+      replyTarget.textContent = "";
+      input.placeholder = defaultPlaceholder;
+      return;
+    }
+
+    replyState.hidden = false;
+    replyState.classList.remove("hidden");
+    replyTarget.textContent = `回复 ${state.replyTarget.authorLabel}`;
+    input.placeholder = `回复 ${state.replyTarget.authorLabel}`;
+  }
+
+  function renderComments(tweetId = activeCommentsTweetId || currentTweetId) {
     const root = getCommentsRoot();
     const list = root?.querySelector?.("[data-detail-comments-list='true']");
     if (!(list instanceof HTMLElement)) {
@@ -783,10 +1059,17 @@ export function createDetailModalController({
       return;
     }
 
+    if (!isMobileMode() && currentTweetId && String(currentTweetId) !== String(tweetId || "")) {
+      return;
+    }
+
+    const state = getCommentThreadState(tweetId);
     list.innerHTML =
-      comments.length > 0
-        ? comments.map((comment) => renderCommentMarkup(comment)).join("")
+      state.rootComments.length > 0
+        ? state.rootComments.map((comment) => renderCommentThreadMarkup(comment, state)).join("")
         : renderEmptyCommentsMarkup("还没有评论，抢先说点什么。");
+
+    syncCommentComposer(tweetId);
   }
 
   async function loadComments(tweet) {
@@ -797,7 +1080,8 @@ export function createDetailModalController({
 
     const videoId = Number.parseInt(String(tweet?.videoId || ""), 10);
     if (!Number.isInteger(videoId) || videoId <= 0) {
-      renderComments([], tweet?.tweetId);
+      replaceCommentThreads(tweet?.tweetId, []);
+      renderComments(tweet?.tweetId);
       return;
     }
 
@@ -815,23 +1099,60 @@ export function createDetailModalController({
       }
 
       const items = Array.isArray(payload?.items) ? payload.items : [];
-      renderComments(items, tweet?.tweetId);
+      replaceCommentThreads(tweet?.tweetId, items);
+      renderComments(tweet?.tweetId);
 
       if (status instanceof HTMLElement) {
         status.dataset.loading = "false";
-        status.textContent = items.length > 0 ? `${items.length} 条评论` : "暂无评论";
+        status.textContent =
+          Number(tweet?.engagement?.commentCount || 0) > 0 ? `${tweet.engagement.commentCount} 条评论` : "暂无评论";
       }
     } catch (error) {
       if (token !== commentsLoadToken) {
         return;
       }
 
-      renderComments([], tweet?.tweetId);
+      replaceCommentThreads(tweet?.tweetId, []);
+      renderComments(tweet?.tweetId);
       if (status instanceof HTMLElement) {
         status.dataset.loading = "false";
         status.textContent = "评论加载失败";
       }
       console.error(error);
+    }
+  }
+
+  async function loadReplies(tweet, rootCommentId, { force = false } = {}) {
+    const videoId = Number.parseInt(String(tweet?.videoId || ""), 10);
+    if (!Number.isInteger(videoId) || videoId <= 0 || !Number.isInteger(rootCommentId) || rootCommentId <= 0) {
+      return;
+    }
+
+    const state = getCommentThreadState(tweet?.tweetId);
+    if (!force && state.repliesByRootId.has(rootCommentId)) {
+      renderComments(tweet?.tweetId);
+      return;
+    }
+
+    if (state.loadingReplyRootIds.has(rootCommentId)) {
+      return;
+    }
+
+    state.loadingReplyRootIds.add(rootCommentId);
+    state.failedReplyRootIds.delete(rootCommentId);
+    renderComments(tweet?.tweetId);
+
+    try {
+      const payload = await requestJson(`/api/videos/${videoId}/comments/${rootCommentId}/replies`);
+      const items = Array.isArray(payload?.items) ? payload.items : [];
+      state.repliesByRootId.set(rootCommentId, items);
+      state.failedReplyRootIds.delete(rootCommentId);
+    } catch (error) {
+      state.failedReplyRootIds.add(rootCommentId);
+      console.error(error);
+    } finally {
+      state.loadingReplyRootIds.delete(rootCommentId);
+      renderComments(tweet?.tweetId);
     }
   }
 
@@ -914,6 +1235,7 @@ export function createDetailModalController({
     root.append(createContent(renderMobileCommentsDrawer(tweet)));
     mobileCommentsLayer = root.querySelector("[data-mobile-comments-layer='true']");
     mobileCommentsDrawer = root.querySelector("[data-mobile-comments-drawer='true']");
+    syncCommentComposer(tweet?.tweetId);
   }
 
   function closeCommentsDrawer({ immediate = false } = {}) {
@@ -967,6 +1289,7 @@ export function createDetailModalController({
     mobileCommentsDrawer.classList.remove("translate-y-full");
     mobileCommentsDrawer.classList.add("translate-y-0");
     syncCommentMeta(tweet);
+    syncCommentComposer(tweet?.tweetId);
     void loadComments(tweet);
   }
 
@@ -1284,6 +1607,7 @@ export function createDetailModalController({
     syncAllReactionButtons(tweet);
     syncCommentMeta(tweet);
     syncAllAuthorFollowButtons(tweet.authorUserId, tweet.authorFollowedByViewer === true);
+    syncCommentComposer(tweet?.tweetId);
     void loadComments(tweet);
   }
 
@@ -1303,6 +1627,7 @@ export function createDetailModalController({
     appendMissingMobileSlides();
     bindMobileSwipeInteractions();
     createOrReplaceMobileCommentsLayer(tweet);
+    syncCommentComposer(tweet?.tweetId);
 
     const initialIndex = getTweetIndex(tweet?.tweetId);
     activateMobileIndex(initialIndex >= 0 ? initialIndex : 0, { force: true });
@@ -1323,6 +1648,61 @@ export function createDetailModalController({
     }
 
     return getCurrentTweet();
+  }
+
+  async function handleRepliesToggle(button) {
+    const tweet = resolveTweetFromElement(button);
+    if (!tweet) {
+      return;
+    }
+
+    const rootCommentId = Number.parseInt(button.dataset.rootCommentId || "", 10);
+    if (!Number.isInteger(rootCommentId) || rootCommentId <= 0) {
+      return;
+    }
+
+    const state = getCommentThreadState(tweet?.tweetId);
+    const hasFailedReplies = state.failedReplyRootIds.has(rootCommentId);
+    if (state.expandedRootIds.has(rootCommentId) && !hasFailedReplies) {
+      state.expandedRootIds.delete(rootCommentId);
+      renderComments(tweet?.tweetId);
+      return;
+    }
+
+    state.expandedRootIds.add(rootCommentId);
+    renderComments(tweet?.tweetId);
+    await loadReplies(tweet, rootCommentId, { force: hasFailedReplies });
+  }
+
+  function handleCommentReplyAction(button) {
+    const tweet = resolveTweetFromElement(button);
+    if (!tweet) {
+      return;
+    }
+
+    if (Number.parseInt(String(tweet.viewerUserId || ""), 10) <= 0) {
+      openAuthModal("login");
+      return;
+    }
+
+    const rootCommentId = Number.parseInt(button.dataset.rootCommentId || "", 10);
+    const replyToCommentId = Number.parseInt(button.dataset.replyToCommentId || "", 10);
+    const authorLabel = String(button.dataset.replyToAuthorLabel || "").trim();
+    if (
+      !Number.isInteger(rootCommentId) ||
+      rootCommentId <= 0 ||
+      !Number.isInteger(replyToCommentId) ||
+      replyToCommentId <= 0 ||
+      !authorLabel
+    ) {
+      return;
+    }
+
+    setCommentReplyTarget(tweet?.tweetId, {
+      rootCommentId,
+      replyToCommentId,
+      authorLabel
+    });
   }
 
   async function handleShareAction(trigger) {
@@ -1431,17 +1811,20 @@ export function createDetailModalController({
       return;
     }
 
+    const state = getCommentThreadState(tweet?.tweetId);
+    const replyTarget = state.replyTarget;
     input.disabled = true;
     if (submitButton instanceof HTMLButtonElement) {
       submitButton.disabled = true;
-      submitButton.textContent = "发布中...";
+      submitButton.textContent = replyTarget ? "回复中..." : "发布中...";
     }
 
     try {
       const payload = await requestJson(`/api/videos/${tweet.videoId}/comments`, {
         method: "POST",
         body: {
-          body
+          body,
+          ...(replyTarget ? { replyToCommentId: replyTarget.replyToCommentId } : {})
         }
       });
 
@@ -1449,24 +1832,15 @@ export function createDetailModalController({
       syncAllReactionButtons(tweet);
       syncCommentMeta(tweet);
 
-      const list = getCommentsRoot()?.querySelector?.("[data-detail-comments-list='true']");
-      const item = payload?.item;
-      if (list instanceof HTMLElement && item) {
-        const isShowingEmptyState = list.querySelector("[data-empty-comments='true']");
-        if (isShowingEmptyState) {
-          list.innerHTML = "";
-        }
-
-        list.insertAdjacentHTML("afterbegin", renderCommentMarkup(item));
-      }
-
-      const status = getCommentsRoot()?.querySelector?.("[data-detail-comments-status='true']");
-      if (status instanceof HTMLElement) {
-        status.dataset.loading = "false";
-        status.textContent = `${tweet.engagement.commentCount} 条评论`;
-      }
-
       input.value = "";
+      clearCommentReplyTarget(tweet?.tweetId);
+      await loadComments(tweet);
+
+      if (replyTarget?.rootCommentId) {
+        const nextState = getCommentThreadState(tweet?.tweetId);
+        nextState.expandedRootIds.add(replyTarget.rootCommentId);
+        await loadReplies(tweet, replyTarget.rootCommentId, { force: true });
+      }
     } catch (error) {
       console.error(error);
     } finally {
@@ -1475,6 +1849,7 @@ export function createDetailModalController({
         submitButton.disabled = false;
         submitButton.textContent = "发布";
       }
+      syncCommentComposer(tweet?.tweetId);
     }
   }
 
@@ -1636,6 +2011,25 @@ export function createDetailModalController({
       const followButton = target.closest("[data-detail-author-follow-button='true']");
       if (followButton instanceof HTMLButtonElement) {
         void handleAuthorFollowClick(followButton);
+        return;
+      }
+
+      const toggleRepliesButton = target.closest("[data-detail-comment-replies-toggle='true']");
+      if (toggleRepliesButton instanceof HTMLButtonElement) {
+        void handleRepliesToggle(toggleRepliesButton);
+        return;
+      }
+
+      const replyButton = target.closest("[data-detail-comment-reply='true']");
+      if (replyButton instanceof HTMLButtonElement) {
+        handleCommentReplyAction(replyButton);
+        return;
+      }
+
+      const cancelReplyButton = target.closest("[data-detail-comment-reply-cancel='true']");
+      if (cancelReplyButton instanceof HTMLButtonElement) {
+        const tweet = resolveTweetFromElement(cancelReplyButton);
+        clearCommentReplyTarget(tweet?.tweetId);
         return;
       }
 
