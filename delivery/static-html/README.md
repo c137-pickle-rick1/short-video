@@ -68,11 +68,16 @@ npm run preview:static
 当前脚本会导出以下页面：
 
 - 首页、探索、榜单、登录页
+- 注册页、忘记密码页
 - 订阅页的游客态、空关注态、选择账号态、已选账号态
 - 公开主页示例页
+- 公开主页和个人主页的关注/粉丝 modal
+- 个人页的编辑资料、上传视频 modal
 - 登录用户个人中心的 overview、creator、history、bookmarks、interactions
 - `/me/history`、`/me/bookmarks`、`/me/interactions`
 - 视频详情示例页
+- 视频详情带评论示例页 `video-273-comments.html`
+- 首页打开视频弹窗的带评论示例页 `index-video-273-comments-modal.html`
 
 如果后续新增了新的交付页面或新的关键状态，需要同步更新：
 
@@ -94,6 +99,8 @@ npm run preview:static
 - `subscriptions-selection.html`
 - `profile-own-bookmarks.html`
 - `video-278.html`
+- `video-273-comments.html`
+- `index-video-273-comments-modal.html`
 
 重点确认：
 
@@ -101,6 +108,13 @@ npm run preview:static
 - 页面主导航是否能在静态包内跳转
 - 页面内容是否为空壳
 - HTML 中是否还残留脚本、Vite 资源、CSRF token
+- 带评论版本里的评论数量、回复层级和文案是否完整
+
+## 评论样本说明
+
+- `video-273-comments.html` 和 `index-video-273-comments-modal.html` 使用导出脚本内置的模拟评论 fixture。
+- 这组评论不会写入数据库，也不依赖当前环境里是否真的存在评论数据。
+- 两个页面复用同一组评论与回复，用于交付时展示“非空评论区”的真实效果。
 
 ## 维护建议
 
