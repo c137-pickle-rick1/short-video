@@ -162,6 +162,8 @@ final class StaticHtmlExporter
         ['filename' => 'viewer-interactions.html', 'uri' => '/me/interactions', 'authUserId' => 19, 'context' => 'auth-main'],
         ['filename' => 'video-273-comments.html', 'uri' => '/videos/273', 'authUserId' => null, 'context' => 'guest', 'refererUri' => '/', 'variant' => 'video-comments'],
         ['filename' => 'index-video-273-comments-modal.html', 'uri' => '/', 'authUserId' => null, 'context' => 'guest', 'variant' => 'feed-detail-modal-comments'],
+        ['filename' => 'index-video-273-mobile.html', 'uri' => '/', 'authUserId' => null, 'context' => 'guest', 'variant' => 'feed-detail-modal-mobile'],
+        ['filename' => 'index-video-273-mobile-comments.html', 'uri' => '/', 'authUserId' => null, 'context' => 'guest', 'variant' => 'feed-detail-modal-mobile-comments'],
         ['filename' => 'video-278.html', 'uri' => '/videos/278', 'authUserId' => null, 'context' => 'guest', 'refererUri' => '/'],
     ];
 
@@ -319,6 +321,7 @@ final class StaticHtmlExporter
         $this->removeNodes($xpath, '//script');
         $this->removeNodes($xpath, '//meta[translate(@name, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz") = "csrf-token"]');
         $this->removeNodes($xpath, '//link[contains(@href, "/build/assets/")]');
+        $this->removeNodes($xpath, '//link[contains(@href, "://127.0.0.1:5173/") or contains(@href, "://localhost:5173/")]');
         $this->removeNodes($xpath, '//link[@rel = "modulepreload"]');
 
         foreach ($xpath->query('//form') as $formNode) {
@@ -353,8 +356,8 @@ final class StaticHtmlExporter
             $formNode->parentNode?->replaceChild($replacement, $formNode);
         }
 
-        $this->rewriteStaticTriggers($dom, $xpath, $page);
         $this->applyPageVariantState($dom, $xpath, $page, $feedBootstrap);
+        $this->rewriteStaticTriggers($dom, $xpath, $page);
 
         foreach ($xpath->query('//*[@href]') as $node) {
             if (! $node instanceof DOMElement) {
@@ -612,6 +615,28 @@ final class StaticHtmlExporter
 
             $this->replaceElementWithAnchor($dom, $node, $target);
         }
+
+        foreach ($this->elementsFromQuery($xpath, '//*[@data-mobile-detail-close="true"]') as $node) {
+            $this->replaceElementWithAnchor($dom, $node, 'index.html');
+        }
+
+        $variant = trim((string) ($page['variant'] ?? ''));
+
+        if ($variant === 'feed-detail-modal-mobile') {
+            foreach ($this->elementsFromQuery($xpath, '//*[@data-detail-comments-open="true"]') as $node) {
+                $this->replaceElementWithAnchor($dom, $node, 'index-video-273-mobile-comments.html');
+            }
+        }
+
+        if ($variant === 'feed-detail-modal-mobile-comments') {
+            foreach ($this->elementsFromQuery($xpath, '//*[@data-mobile-comments-close="true"]') as $node) {
+                $this->replaceElementWithAnchor($dom, $node, 'index-video-273-mobile.html');
+            }
+
+            foreach ($this->elementsFromQuery($xpath, '//*[@data-mobile-comments-backdrop="true"]') as $node) {
+                $this->replaceElementWithAnchor($dom, $node, 'index-video-273-mobile.html');
+            }
+        }
     }
 
     /**
@@ -631,6 +656,8 @@ final class StaticHtmlExporter
             'profile-social-followers' => $this->setSocialModalState($xpath, 'followers'),
             'video-comments' => $this->applyStaticVideoComments($dom, $xpath),
             'feed-detail-modal-comments' => $this->applyStaticFeedDetailModal($dom, $xpath, $feedBootstrap),
+            'feed-detail-modal-mobile' => $this->applyStaticMobileFeedDetailModal($dom, $xpath, $feedBootstrap, false),
+            'feed-detail-modal-mobile-comments' => $this->applyStaticMobileFeedDetailModal($dom, $xpath, $feedBootstrap, true),
             default => null,
         };
     }
@@ -952,6 +979,30 @@ final class StaticHtmlExporter
         $this->replaceElementChildrenWithHtml($panel, $this->renderStaticFeedDetailModalMarkup($tweet));
     }
 
+    private function applyStaticMobileFeedDetailModal(
+        DOMDocument $dom,
+        DOMXPath $xpath,
+        array $feedBootstrap,
+        bool $withCommentsDrawer,
+    ): void {
+        $modal = $this->firstElementFromQuery($xpath, '//*[@id="feed-detail-modal"]');
+        $panel = $this->firstElementFromQuery($xpath, '//*[@id="feed-detail-modal-panel"]');
+
+        if ($modal === null || $panel === null) {
+            throw new RuntimeException('Feed detail modal shell not found in exported page.');
+        }
+
+        $tweet = $this->resolveFeedBootstrapTweet($feedBootstrap, self::COMMENT_SAMPLE_VIDEO_ID);
+        if ($tweet === null) {
+            throw new RuntimeException('Video 273 not found in feed bootstrap payload.');
+        }
+
+        $this->setElementHidden($modal, false);
+        $panel->removeAttribute('aria-labelledby');
+        $panel->setAttribute('aria-label', '移动端短视频详情');
+        $this->replaceElementChildrenWithHtml($panel, $this->renderStaticMobileFeedDetailMarkup($tweet, $withCommentsDrawer));
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -1212,6 +1263,237 @@ final class StaticHtmlExporter
     /**
      * @param  array<string, mixed>  $tweet
      */
+    private function renderStaticMobileFeedDetailMarkup(array $tweet, bool $withCommentsDrawer): string
+    {
+        $commentCount = $this->staticCommentCount(self::STATIC_COMMENT_THREADS);
+
+        return '
+    <div
+      class="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-black"
+      data-detail-layout-node="true"
+      data-mobile-detail-root="true"
+    >
+      <div
+        class="detail-mobile-viewport relative h-full w-full overflow-hidden"
+        data-mobile-detail-viewport="true"
+      >
+        <div
+          class="detail-mobile-track relative flex h-full w-full flex-col"
+          data-mobile-detail-track="true"
+          style="transform: translate3d(0, 0, 0);"
+        >
+          '.$this->renderStaticMobileFeedSlideMarkup($tweet, $commentCount).'
+        </div>
+      </div>'.
+      ($withCommentsDrawer ? $this->renderStaticMobileCommentsDrawerMarkup($commentCount) : '').'
+    </div>';
+    }
+
+    /**
+     * @param  array<string, mixed>  $tweet
+     */
+    private function renderStaticMobileFeedSlideMarkup(array $tweet, int $commentCount): string
+    {
+        $engagement = is_array($tweet['engagement'] ?? null) ? $tweet['engagement'] : [];
+        $authorName = trim((string) ($tweet['authorName'] ?? '')) !== '' ? trim((string) $tweet['authorName']) : '匿名作者';
+        $authorHandle = trim((string) ($tweet['authorHandle'] ?? ''));
+        $authorUsername = trim((string) ($tweet['authorUsername'] ?? ''));
+        $authorMeta = $authorUsername !== '' ? '@'.$authorUsername : ($authorHandle !== '' ? '@'.$authorHandle : '');
+        $safeTweetId = $this->escapeHtml((string) ($tweet['tweetId'] ?? self::COMMENT_SAMPLE_VIDEO_ID));
+        $detailText = $this->displayTextFromTweet($tweet);
+
+        return '
+    <article
+      class="mobile-detail-slide relative flex h-full min-h-full w-full flex-none items-stretch justify-center overflow-hidden bg-black"
+      data-detail-layout-node="true"
+      data-mobile-detail-slide="true"
+      data-tweet-id="'.$safeTweetId.'"
+      data-active="true"
+      aria-label="'.$this->escapeHtml($authorName).' 的视频"
+    >
+      <div class="detail-mobile-media-shell relative flex-1 overflow-hidden bg-black">
+        '.$this->renderStaticMobileFeedDetailMediaMarkup($tweet, $authorName).'
+      </div>
+
+      <div class="pointer-events-none absolute inset-x-0 top-0 z-10 h-40 bg-gradient-to-b from-black/75 via-black/20 to-transparent"></div>
+      <div class="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-[44dvh] bg-gradient-to-t from-black/75 via-black/40 to-transparent"></div>
+
+      <div class="absolute inset-x-0 top-0 z-30 flex items-center justify-between px-4 pt-[calc(env(safe-area-inset-top)+0.8rem)] sm:px-6">
+        <button
+          type="button"
+          class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-black/35 text-white backdrop-blur-xl transition hover:bg-black/55"
+          data-mobile-detail-close="true"
+          aria-label="返回视频流"
+        >
+          <i class="ph ph-arrow-left text-lg leading-none" aria-hidden="true"></i>
+        </button>
+
+        <div class="flex items-center gap-3">
+          <button
+            type="button"
+            class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-black/35 text-white backdrop-blur-xl transition hover:bg-black/55"
+            data-detail-share-action="true"
+            aria-label="分享视频"
+          >
+            <i class="ph ph-share text-lg leading-none" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="absolute inset-x-0 bottom-0 z-20 px-4 pb-[calc(env(safe-area-inset-bottom)+6.1rem)] pt-24 sm:px-6">
+        <div class="mx-auto flex w-full max-w-md flex-col gap-3.5">
+          <div class="flex min-w-0 items-center gap-3">
+            <div class="flex min-w-0 items-center gap-2.5">
+              '.$this->renderStaticAvatarMarkup($authorName, $authorUsername !== '' ? $authorUsername : $authorHandle, 'h-10 w-10', 'bg-white/15 text-white').'
+              <div class="min-w-0">
+                <p class="truncate text-sm font-semibold text-white">'.$this->escapeHtml($authorName).'</p>'.
+                ($authorMeta !== '' ? '
+                <p class="mt-1 truncate text-xs text-white/70">'.$this->escapeHtml($authorMeta).'</p>' : '').'
+              </div>
+            </div>
+
+            <a
+              href="/login"
+              class="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-rose-500 px-4 text-[0.8125rem] font-semibold text-white shadow-sm transition hover:bg-rose-600"
+              data-auth-modal-trigger="true"
+              data-auth-modal-panel="login"
+            >
+              关注
+            </a>
+          </div>
+
+          <div class="grid gap-3">
+            <h2 class="line-clamp-2 text-[1.05rem] font-semibold leading-7 text-white sm:text-lg">
+              '.$this->escapeHtml($detailText).'
+            </h2>
+          </div>
+        </div>
+      </div>
+
+      <div class="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.7rem)] z-30 px-4 sm:px-6">
+        <div class="mx-auto grid w-full max-w-md gap-2">
+          <div
+            class="detail-mobile-progress-time hidden text-center text-[0.95rem] font-medium tracking-[0.04em] text-white/95"
+            data-detail-progress-time="true"
+            aria-hidden="true"
+          >
+            00:00 / 00:00
+          </div>
+          <div class="pointer-events-auto" data-detail-progress-shell="true">
+            <input
+              type="range"
+              min="0"
+              max="1000"
+              step="1"
+              value="0"
+              class="detail-mobile-progress-range w-full"
+              data-detail-progress-range="true"
+              style="--detail-progress-value: 0%;"
+              aria-label="视频播放进度"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="absolute inset-x-0 bottom-0 z-30 border-t border-white/10 bg-black/90 px-4 pb-[calc(env(safe-area-inset-bottom)+0.9rem)] pt-3 backdrop-blur-xl sm:px-6">
+        <div class="mx-auto flex w-full max-w-md items-center gap-3">
+          <button
+            type="button"
+            class="inline-flex h-12 min-w-0 flex-1 items-center gap-3 rounded-full bg-white/10 px-4 text-sm text-white/60 transition hover:bg-white/15"
+            data-detail-comments-open="true"
+            aria-label="打开评论输入"
+          >
+            <i class="ph ph-pencil-simple-line text-lg leading-none text-white/70" aria-hidden="true"></i>
+            <span class="truncate">说点什么...</span>
+          </button>
+
+          <div class="flex shrink-0 items-center gap-4">
+            '.$this->renderStaticMobileReactionStatMarkup('heart', (int) ($engagement['likeCount'] ?? 0), false, '点赞').'
+            '.$this->renderStaticMobileReactionStatMarkup('bookmark-simple', (int) ($engagement['bookmarkCount'] ?? 0), false, '收藏').'
+            <button
+              type="button"
+              class="inline-flex min-w-[3.75rem] items-center justify-center gap-2 text-white transition"
+              data-detail-comments-open="true"
+              aria-label="打开评论"
+            >
+              <i class="ph ph-chat-circle text-[1.85rem] leading-none text-white" aria-hidden="true"></i>
+              <span class="text-[0.95rem] font-semibold leading-none tabular-nums text-white/95">'.$this->escapeHtml((string) $commentCount).'</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </article>';
+    }
+
+    private function renderStaticMobileCommentsDrawerMarkup(int $commentCount): string
+    {
+        return '
+    <div
+      class="pointer-events-auto absolute inset-0 z-40"
+      data-detail-layout-node="true"
+      data-mobile-comments-layer="true"
+      aria-hidden="false"
+    >
+      <button
+        type="button"
+        class="absolute inset-0 bg-black/55 opacity-100 transition duration-200"
+        data-mobile-comments-backdrop="true"
+        aria-label="关闭评论"
+      ></button>
+
+      <section
+        class="absolute inset-x-0 bottom-0 flex max-h-[82dvh] translate-y-0 flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl transition duration-300 ease-out"
+        data-mobile-comments-drawer="true"
+        aria-labelledby="mobile-detail-comments-title"
+      >
+        <header class="flex items-center justify-between border-b border-gray-200 px-4 py-4 sm:px-5">
+          <div class="flex items-center gap-3">
+            <h2 id="mobile-detail-comments-title" class="text-base font-semibold text-gray-950">
+              评论
+            </h2>
+            <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-500" data-detail-comments-status="true">
+              '.$this->escapeHtml((string) $commentCount).' 条评论
+            </span>
+          </div>
+
+          <button
+            type="button"
+            class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition hover:bg-gray-200 hover:text-gray-900"
+            data-mobile-comments-close="true"
+            aria-label="关闭评论"
+          >
+            <i class="ph ph-x text-lg leading-none" aria-hidden="true"></i>
+          </button>
+        </header>
+
+        <div class="flex-1 overflow-y-auto px-4 py-5 sm:px-5">
+          <div class="grid gap-5" data-detail-comments-list="true">
+            '.$this->renderStaticCommentThreadsMarkup(self::STATIC_COMMENT_THREADS).'
+          </div>
+        </div>
+
+        <div class="border-t border-gray-200 bg-white px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-5">
+          <div class="flex items-center gap-3">
+            <div class="flex h-12 min-w-0 flex-1 items-center rounded-full bg-gray-100 px-4 text-sm text-gray-400">
+              登录后参与评论
+            </div>
+            <a
+              href="/login"
+              class="inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-gray-900 px-5 text-sm font-semibold text-white transition hover:bg-gray-800"
+              data-auth-modal-trigger="true"
+              data-auth-modal-panel="login"
+            >
+              去登录
+            </a>
+          </div>
+        </div>
+      </section>
+    </div>';
+    }
+
+    /**
+     * @param  array<string, mixed>  $tweet
+     */
     private function renderStaticFeedDetailMediaMarkup(array $tweet, string $authorName): string
     {
         $posterUrl = trim((string) ($tweet['posterUrl'] ?? ''));
@@ -1248,6 +1530,42 @@ final class StaticHtmlExporter
       </div>';
     }
 
+    /**
+     * @param  array<string, mixed>  $tweet
+     */
+    private function renderStaticMobileFeedDetailMediaMarkup(array $tweet, string $authorName): string
+    {
+        $posterUrl = trim((string) ($tweet['posterUrl'] ?? ''));
+        $videoUrl = trim((string) ($tweet['videoUrl'] ?? ''));
+        $shouldUseVideo = $videoUrl !== '' && ! str_starts_with($videoUrl, '/api/');
+
+        if ($shouldUseVideo) {
+            return '
+      <video
+        class="detail-modal-video h-full w-full bg-black object-cover"
+        src="'.$this->escapeHtml($videoUrl).'"
+        '.($posterUrl !== '' ? 'poster="'.$this->escapeHtml($posterUrl).'"' : '').'
+        autoplay
+        muted
+        loop
+        playsinline
+        preload="metadata"
+        referrerpolicy="no-referrer"
+      ></video>';
+        }
+
+        return '
+      <div class="relative flex h-full w-full items-center justify-center">
+        <img
+          class="h-full w-full object-cover"
+          src="'.$this->escapeHtml($posterUrl).'"
+          alt="'.$this->escapeHtml($authorName).' 的视频封面"
+          loading="lazy"
+          referrerpolicy="no-referrer"
+        />
+      </div>';
+    }
+
     private function renderStaticReactionBadge(string $icon, int $count, bool $active, string $tone): string
     {
         $className = match (true) {
@@ -1266,7 +1584,30 @@ final class StaticHtmlExporter
         return '
       <span class="inline-flex h-11 shrink-0 items-center gap-2.5 rounded-full border px-4 text-sm font-semibold '.$className.'">
         <i class="'.$this->escapeHtml($iconClass).' text-[1.05rem] leading-none" aria-hidden="true"></i>
-        <span class="text-xs font-semibold tabular-nums opacity-80">'.$this->escapeHtml((string) max(0, $count)).'</span>
+      <span class="text-xs font-semibold tabular-nums opacity-80">'.$this->escapeHtml((string) max(0, $count)).'</span>
+      </span>';
+    }
+
+    private function renderStaticMobileReactionStatMarkup(
+        string $icon,
+        int $count,
+        bool $active,
+        string $label,
+    ): string {
+        $iconClass = match (true) {
+            $icon === 'heart' && $active => 'ph-fill ph-heart text-rose-300',
+            $icon === 'heart' => 'ph ph-heart text-white',
+            $icon === 'bookmark-simple' && $active => 'ph-fill ph-bookmark-simple text-amber-200',
+            default => 'ph ph-bookmark-simple text-white',
+        };
+
+        return '
+      <span
+        class="inline-flex min-w-[3.75rem] items-center justify-center gap-2 text-white"
+        aria-label="'.$this->escapeHtml($label).'"
+      >
+        <i class="'.$this->escapeHtml($iconClass).' text-[1.85rem] leading-none" aria-hidden="true"></i>
+        <span class="text-[0.95rem] font-semibold leading-none tabular-nums text-white/95">'.$this->escapeHtml((string) max(0, $count)).'</span>
       </span>';
     }
 
